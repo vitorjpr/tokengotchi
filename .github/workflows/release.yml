@@ -1,0 +1,72 @@
+name: Release
+
+# Dispara ao empurrar uma tag de versão: git tag v0.1.0 && git push --tags
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # Cada sistema compila o próprio binário, em vez de tudo sair de um Mac.
+    # Cross-compilar funciona, mas só o build nativo prova que o artefato abre.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            script: dist:mac
+          - os: windows-latest
+            script: dist:win
+          - os: ubuntu-latest
+            script: dist:linux
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar mise
+        uses: jdx/mise-action@v2
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Selftest
+        run: npm test
+
+      - name: Build
+        run: npm run ${{ matrix.script }}
+        env:
+          # Sem certificado de assinatura nos runners: build não assinado,
+          # de propósito. Ver a seção de instalação no README.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Publicar artefatos
+        uses: actions/upload-artifact@v4
+        with:
+          name: tokengotchi-${{ matrix.os }}
+          retention-days: 7
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Criar release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
+          draft: true

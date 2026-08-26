@@ -5,8 +5,12 @@
       "label": "Claude Code",
       "enabled": true,
       "parser": "claude-code",
-      "roots": ["~/.claude/projects"],
-      "extensions": [".jsonl"],
+      "roots": [
+        "~/.claude/projects"
+      ],
+      "extensions": [
+        ".jsonl"
+      ],
       "maxDepth": 4
     },
     {
@@ -14,8 +18,12 @@
       "label": "Codex CLI",
       "enabled": true,
       "parser": "codex",
-      "roots": ["~/.codex/sessions"],
-      "extensions": [".jsonl"],
+      "roots": [
+        "~/.codex/sessions"
+      ],
+      "extensions": [
+        ".jsonl"
+      ],
       "maxDepth": 6
     },
     {
@@ -23,8 +31,15 @@
       "label": "Grok CLI",
       "enabled": true,
       "parser": "generic-usage",
-      "roots": ["~/.grok", "~/.grok-cli", "~/.config/grok"],
-      "extensions": [".jsonl", ".json"],
+      "roots": [
+        "~/.grok",
+        "~/.grok-cli",
+        "~/.config/grok"
+      ],
+      "extensions": [
+        ".jsonl",
+        ".json"
+      ],
       "maxDepth": 4
     },
     {
@@ -34,9 +49,16 @@
       "parser": "activity",
       "roots": [
         "~/Library/Application Support/Cursor/User/workspaceStorage",
-        "~/Library/Application Support/Cursor/User/globalStorage"
+        "~/Library/Application Support/Cursor/User/globalStorage",
+        "~/AppData/Roaming/Cursor/User/workspaceStorage",
+        "~/AppData/Roaming/Cursor/User/globalStorage",
+        "~/.config/Cursor/User/workspaceStorage",
+        "~/.config/Cursor/User/globalStorage"
       ],
-      "extensions": [".vscdb", ".json"],
+      "extensions": [
+        ".vscdb",
+        ".json"
+      ],
       "maxDepth": 3,
       "estimatedTokensPerEvent": 1800,
       "minEventIntervalSeconds": 45

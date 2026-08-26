@@ -7,15 +7,24 @@ on:
 
 jobs:
   test:
-    runs-on: macos-latest
+    # O app roda nos três sistemas, então o teste roda nos três.
+    # Este Mac não consegue verificar os binários de Windows e Linux;
+    # aqui é onde eles são de fato exercitados.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Instalar mise
         uses: jdx/mise-action@v2
 
-      # O selftest não precisa do Electron: roda só com Node,
-      # cobrindo parsers, leitura incremental e ciclo de vida.
+      # O selftest não precisa do Electron nem de npm install:
+      # cobre parsers, leitura incremental e ciclo de vida só com Node.
       - name: Selftest
         run: mise run test
 

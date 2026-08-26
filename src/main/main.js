@@ -102,18 +102,25 @@ function trayIcon() {
     '................',
     '................'
   ];
+  // Só o macOS entende "template image" (silhueta que o sistema inverte conforme
+  // o tema da barra). No Windows e no Linux ela seria desenhada preta como está,
+  // sumindo em qualquer bandeja escura — por isso lá vai a cor do bichinho, que
+  // se enxerga tanto em fundo claro quanto escuro.
+  const isMac = process.platform === 'darwin';
+  const [r, g, b] = isMac ? [0, 0, 0] : [0xc4, 0x9a, 0x78];
+
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
       const on = rows[y][x] === '#';
       const i = (y * size + x) * 4;
-      buffer[i] = 0; // B
-      buffer[i + 1] = 0; // G
-      buffer[i + 2] = 0; // R
+      buffer[i] = b; // B
+      buffer[i + 1] = g; // G
+      buffer[i + 2] = r; // R
       buffer[i + 3] = on ? 255 : 0; // A
     }
   }
   const image = nativeImage.createFromBitmap(buffer, { width: size, height: size });
-  image.setTemplateImage(true);
+  if (isMac) image.setTemplateImage(true);
   return image;
 }
 
@@ -150,12 +157,16 @@ function buildTrayMenu() {
       label: 'Chocar um novo ovo',
       click: () => hatch()
     },
-    {
-      label: 'Abrir no login',
-      type: 'checkbox',
-      checked: isOpenAtLogin(),
-      click: (item) => setOpenAtLogin(item.checked)
-    },
+    ...(SUPPORTS_LOGIN_ITEM
+      ? [
+          {
+            label: 'Abrir no login',
+            type: 'checkbox',
+            checked: isOpenAtLogin(),
+            click: (item) => setOpenAtLogin(item.checked)
+          }
+        ]
+      : []),
     {
       label: 'Abrir pasta de dados',
       click: () => shell.openPath(userDataDir())
@@ -190,7 +201,13 @@ function toggleWindow() {
   else revealWindow();
 }
 
+// Electron só implementa item de login no macOS e no Windows. No Linux a chamada
+// é silenciosamente inócua, então lá o item nem aparece no menu — melhor não ter
+// a opção do que ter um checkbox que mente.
+const SUPPORTS_LOGIN_ITEM = process.platform === 'darwin' || process.platform === 'win32';
+
 function isOpenAtLogin() {
+  if (!SUPPORTS_LOGIN_ITEM) return false;
   try {
     return app.getLoginItemSettings().openAtLogin === true;
   } catch {
@@ -199,6 +216,7 @@ function isOpenAtLogin() {
 }
 
 function setOpenAtLogin(value) {
+  if (!SUPPORTS_LOGIN_ITEM) return;
   try {
     app.setLoginItemSettings({ openAtLogin: value, openAsHidden: true });
   } catch (err) {

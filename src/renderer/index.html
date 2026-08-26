@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tokengotchi</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="shell" id="shell">
+      <header class="bar">
+        <span class="brand">tokengotchi<span class="gen" id="gen">·1</span></span>
+        <div class="controls">
+          <button class="chip" id="hide" title="Esconder">–</button>
+          <button class="chip" id="quit" title="Sair">×</button>
+        </div>
+      </header>
+
+      <section class="screen">
+        <canvas id="pet" width="160" height="160"></canvas>
+        <div class="glass"></div>
+        <div class="gain" id="gain"></div>
+      </section>
+
+      <section class="readout">
+        <div class="mood">
+          <span class="dot" id="dot"></span>
+          <span id="moodLabel">acordando</span>
+          <span class="stage" id="stageLabel">ovo</span>
+        </div>
+
+        <div class="meter">
+          <div class="meter-head">
+            <span>saciedade</span><span id="satietyValue">0%</span>
+          </div>
+          <div class="track"><div class="fill fill-satiety" id="satietyBar"></div></div>
+        </div>
+
+        <div class="meter">
+          <div class="meter-head">
+            <span>saúde</span><span id="healthValue">0%</span>
+          </div>
+          <div class="track"><div class="fill fill-health" id="healthBar"></div></div>
+        </div>
+
+        <footer class="foot">
+          <span id="tokens">0 tokens hoje</span>
+          <span id="timer">—</span>
+        </footer>
+
+        <button class="cta" id="hatch" hidden>Chocar um novo ovo</button>
+      </section>
+    </main>
+
+    <script src="sprite.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

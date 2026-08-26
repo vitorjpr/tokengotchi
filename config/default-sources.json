@@ -1,0 +1,49 @@
+{
+  "sources": [
+    {
+      "id": "claude-code",
+      "label": "Claude Code",
+      "enabled": true,
+      "parser": "claude-code",
+      "roots": ["~/.claude/projects"],
+      "extensions": [".jsonl"],
+      "maxDepth": 4
+    },
+    {
+      "id": "codex",
+      "label": "Codex CLI",
+      "enabled": true,
+      "parser": "codex",
+      "roots": ["~/.codex/sessions"],
+      "extensions": [".jsonl"],
+      "maxDepth": 6
+    },
+    {
+      "id": "grok",
+      "label": "Grok CLI",
+      "enabled": true,
+      "parser": "generic-usage",
+      "roots": ["~/.grok", "~/.grok-cli", "~/.config/grok"],
+      "extensions": [".jsonl", ".json"],
+      "maxDepth": 4
+    },
+    {
+      "id": "cursor",
+      "label": "Cursor",
+      "enabled": true,
+      "parser": "activity",
+      "roots": [
+        "~/Library/Application Support/Cursor/User/workspaceStorage",
+        "~/Library/Application Support/Cursor/User/globalStorage"
+      ],
+      "extensions": [".vscdb", ".json"],
+      "maxDepth": 3,
+      "estimatedTokensPerEvent": 1800,
+      "minEventIntervalSeconds": 45
+    }
+  ],
+  "ingest": {
+    "enabled": true,
+    "port": 4736
+  }
+}

@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar mise
+        uses: jdx/mise-action@v2
+
+      # O selftest não precisa do Electron: roda só com Node,
+      # cobrindo parsers, leitura incremental e ciclo de vida.
+      - name: Selftest
+        run: mise run test
+
+      - name: Diagnóstico das fontes
+        # Numa máquina limpa nenhuma fonte existe; o doctor tem que
+        # sobreviver a isso sem quebrar, que é justamente o contrato dele.
+        run: mise run doctor 24

@@ -1,0 +1,49 @@
+{
+  "name": "tokengotchi",
+  "version": "0.1.0",
+  "description": "Um bichinho de estimação de desktop alimentado pelos tokens que você gasta com agentes de IA.",
+  "author": "Vitor Rodrigues",
+  "license": "MIT",
+  "keywords": [
+    "electron",
+    "macos",
+    "tamagotchi",
+    "virtual-pet",
+    "tokens",
+    "claude-code",
+    "codex",
+    "cursor",
+    "menubar"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node scripts/selftest.js",
+    "doctor": "node scripts/doctor.js",
+    "icon": "node scripts/make-icon.js",
+    "dist": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "dev.tokengotchi.app",
+    "productName": "Tokengotchi",
+    "files": [
+      "src/**/*",
+      "config/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "target": [
+        "dmg"
+      ]
+    },
+    "icon": "build/icon.png"
+  }
+}

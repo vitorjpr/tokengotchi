@@ -1,0 +1,327 @@
+'use strict';
+
+const { app, BrowserWindow, Tray, Menu, ipcMain, shell, nativeImage, screen } = require('electron');
+const fs = require('fs');
+const path = require('path');
+
+const sources = require('./sources');
+const petLib = require('./pet');
+const { startIngest } = require('./ingest');
+
+const POLL_MS = 8000;
+const WINDOW = { width: 250, height: 330 };
+
+let win = null;
+let tray = null;
+let store = null;
+let pet = null;
+let cursors = {};
+let config = null;
+let ingestServer = null;
+let lastScan = { at: 0, bySource: {} };
+
+// Uma instância só. Com "abrir no login" ligado, abrir o app de novo pela mão
+// criaria um segundo processo brigando pela porta 4736 e pelo mesmo cursors.json
+// — dois escritores no mesmo offset corrompem a contagem em silêncio.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+  return;
+}
+
+// A segunda instância morre, mas serve de atalho: revela a janela da primeira.
+app.on('second-instance', () => revealWindow());
+
+function userDataDir() {
+  return app.getPath('userData');
+}
+
+/** Carrega a config do usuário, criando-a a partir do padrão na primeira vez. */
+function loadConfig() {
+  const target = path.join(userDataDir(), 'sources.json');
+  const fallback = path.join(__dirname, '..', '..', 'config', 'default-sources.json');
+  try {
+    return JSON.parse(fs.readFileSync(target, 'utf8'));
+  } catch {
+    const defaults = JSON.parse(fs.readFileSync(fallback, 'utf8'));
+    fs.mkdirSync(userDataDir(), { recursive: true });
+    fs.writeFileSync(target, JSON.stringify(defaults, null, 2));
+    return defaults;
+  }
+}
+
+function createWindow() {
+  const display = screen.getPrimaryDisplay().workArea;
+  win = new BrowserWindow({
+    width: WINDOW.width,
+    height: WINDOW.height,
+    x: display.x + display.width - WINDOW.width - 28,
+    y: display.y + 28,
+    frame: false,
+    transparent: true,
+    hasShadow: false,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  win.once('ready-to-show', () => win.show());
+  win.on('closed', () => {
+    win = null;
+  });
+}
+
+/** Ícone 16x16 desenhado na mão para a barra de menus (template = segue o tema do macOS). */
+function trayIcon() {
+  const size = 16;
+  const buffer = Buffer.alloc(size * size * 4);
+  const rows = [
+    '................',
+    '................',
+    '....########....',
+    '...##########...',
+    '..############..',
+    '..##..####..##..',
+    '..##..####..##..',
+    '..############..',
+    '..############..',
+    '..############..',
+    '...##########...',
+    '....##....##....',
+    '....##....##....',
+    '....##....##....',
+    '................',
+    '................'
+  ];
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const on = rows[y][x] === '#';
+      const i = (y * size + x) * 4;
+      buffer[i] = 0; // B
+      buffer[i + 1] = 0; // G
+      buffer[i + 2] = 0; // R
+      buffer[i + 3] = on ? 255 : 0; // A
+    }
+  }
+  const image = nativeImage.createFromBitmap(buffer, { width: size, height: size });
+  image.setTemplateImage(true);
+  return image;
+}
+
+function formatTokens(n) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(Math.round(n));
+}
+
+function buildTrayMenu() {
+  const snap = petLib.snapshot(pet);
+  const sourceItems = Object.entries(lastScan.bySource).map(([id, data]) => ({
+    label: `${data.label}${data.estimated ? ' (estimado)' : ''} — ${data.files} arquivo(s)`,
+    enabled: false
+  }));
+
+  return Menu.buildFromTemplate([
+    { label: `${snap.name} · ${snap.stageLabel} · ${snap.mood}`, enabled: false },
+    {
+      label: snap.dead
+        ? 'Morreu de fome'
+        : `Saciedade ${snap.satiety}% · Saúde ${snap.health}%`,
+      enabled: false
+    },
+    { label: `Hoje: ${formatTokens(snap.tokensToday)} tokens`, enabled: false },
+    { type: 'separator' },
+    ...(sourceItems.length ? sourceItems : [{ label: 'Nenhuma fonte encontrada', enabled: false }]),
+    { type: 'separator' },
+    {
+      label: win && win.isVisible() ? 'Esconder bichinho' : 'Mostrar bichinho',
+      click: () => toggleWindow()
+    },
+    {
+      label: 'Chocar um novo ovo',
+      click: () => hatch()
+    },
+    {
+      label: 'Abrir no login',
+      type: 'checkbox',
+      checked: isOpenAtLogin(),
+      click: (item) => setOpenAtLogin(item.checked)
+    },
+    {
+      label: 'Abrir pasta de dados',
+      click: () => shell.openPath(userDataDir())
+    },
+    { type: 'separator' },
+    { label: 'Sair', click: () => app.quit() }
+  ]);
+}
+
+/**
+ * Traz a janela de volta seja qual for o estado em que ela sumiu:
+ * escondida pelo tray, minimizada pelo Cmd+M ou atrás de outra janela.
+ * `show()` sozinho não desfaz um minimize — daí o restore() antes.
+ */
+function revealWindow() {
+  if (!win || win.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+  if (tray) tray.setContextMenu(buildTrayMenu());
+}
+
+function toggleWindow() {
+  if (!win || win.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (win.isVisible() && !win.isMinimized()) win.hide();
+  else revealWindow();
+}
+
+function isOpenAtLogin() {
+  try {
+    return app.getLoginItemSettings().openAtLogin === true;
+  } catch {
+    return false;
+  }
+}
+
+function setOpenAtLogin(value) {
+  try {
+    app.setLoginItemSettings({ openAtLogin: value, openAsHidden: true });
+  } catch (err) {
+    console.error('[tokengotchi] não consegui alterar o item de login:', err.message);
+  }
+}
+
+function hatch() {
+  const generation = (pet?.generation || 0) + 1;
+  pet = petLib.freshPet(Date.now(), generation);
+  store.savePet(pet);
+  push();
+}
+
+function push() {
+  const snap = petLib.snapshot(pet);
+  snap.scan = lastScan;
+  if (win && !win.isDestroyed()) win.webContents.send('pet:state', snap);
+  if (tray) {
+    tray.setToolTip(`${snap.name} — saciedade ${snap.satiety}%, saúde ${snap.health}%`);
+    tray.setContextMenu(buildTrayMenu());
+  }
+}
+
+function scanAndTick(firstRun = false) {
+  const now = Date.now();
+  let harvest = { calories: 0, tokens: 0, bySource: {} };
+  try {
+    harvest = sources.collect(config, cursors, { now, firstRun });
+  } catch (err) {
+    console.error('[tokengotchi] falha ao varrer fontes:', err.message);
+  }
+
+  lastScan = { at: now, bySource: harvest.bySource };
+  petLib.tick(pet, {
+    calories: harvest.calories,
+    tokens: harvest.tokens,
+    bySource: harvest.bySource,
+    now
+  });
+
+  store.savePet(pet);
+  store.saveCursors(cursors);
+  push();
+}
+
+function feedFromIngest(payload) {
+  const usage = sources.normalizeUsage(payload) || sources.normalizeUsage(payload.usage);
+  if (!usage) return { ok: false, error: 'informe input/output ou tokens' };
+
+  const calories = sources.toCalories(usage);
+  const tokens = sources.totalTokens(usage);
+  const id = String(payload.source || 'externo');
+  const label = String(payload.label || id);
+
+  petLib.tick(pet, {
+    calories,
+    tokens,
+    bySource: { [id]: { label, tokens, calories } },
+    now: Date.now()
+  });
+  store.savePet(pet);
+  push();
+
+  return { ok: true, tokens, calories, satiety: Math.round(pet.satiety) };
+}
+
+app.whenReady().then(() => {
+  if (process.platform === 'darwin' && app.dock) app.dock.hide();
+
+  store = new petLib.Store(userDataDir());
+  config = loadConfig();
+  cursors = store.loadCursors();
+
+  const loaded = store.loadPet();
+  pet = loaded.pet;
+  const firstRun = loaded.isNew && Object.keys(cursors).length === 0;
+
+  createWindow();
+  tray = new Tray(trayIcon());
+  tray.setContextMenu(buildTrayMenu());
+
+  scanAndTick(firstRun);
+  setInterval(() => scanAndTick(false), POLL_MS);
+
+  if (config.ingest?.enabled !== false) {
+    ingestServer = startIngest({
+      port: config.ingest?.port || 4736,
+      onFeed: feedFromIngest,
+      getStatus: () => petLib.snapshot(pet),
+      onReveal: () => revealWindow(),
+      onHide: () => {
+        if (win && !win.isDestroyed()) win.hide();
+      }
+    });
+  }
+
+  app.on('activate', () => revealWindow());
+});
+
+app.on('window-all-closed', (event) => {
+  // Fechar a janela não mata o bichinho: ele continua na barra de menus.
+  event?.preventDefault?.();
+});
+
+app.on('before-quit', () => {
+  if (ingestServer) ingestServer.close();
+  if (pet && store) store.savePet(pet);
+});
+
+ipcMain.handle('pet:hatch', () => {
+  hatch();
+  return petLib.snapshot(pet);
+});
+
+ipcMain.handle('pet:snapshot', () => {
+  const snap = petLib.snapshot(pet);
+  snap.scan = lastScan;
+  return snap;
+});
+
+ipcMain.on('window:hide', () => {
+  if (win) win.hide();
+});
+
+ipcMain.on('window:quit', () => app.quit());

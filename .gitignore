@@ -1,0 +1,35 @@
+# dependências
+node_modules/
+
+# artefatos de build do electron-builder
+dist/
+release/
+*.dmg
+*.zip
+*.app
+
+# logs
+npm-debug.log*
+yarn-error.log*
+*.log
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# editores
+.vscode/
+.idea/
+*.swp
+
+# estado local de agentes / ferramentas
+.claude/settings.local.json
+
+# nada de dados do bichinho no repo (eles vivem em
+# ~/Library/Application Support/Tokengotchi/)
+pet.json
+cursors.json
+sources.json

@@ -1,0 +1,250 @@
+:root {
+  --bg: #faf4ee;
+  --surface: #f3e7da;
+  --primary: #f2994a;
+  --primary-hover: #e67e22;
+  --secondary: #c49a78;
+  --text: #2d2926;
+  --text-soft: #6e665f;
+  --border: #e2d3c5;
+  --success: #5f8d4e;
+  --warning: #e89a3d;
+  --error: #c65d4b;
+  --screen: #241f1c;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+.shell {
+  height: 100%;
+  margin: 6px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 10px 28px rgba(45, 41, 38, 0.18);
+  -webkit-app-region: drag;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.gen {
+  opacity: 0.55;
+  margin-left: 2px;
+}
+
+.controls {
+  display: flex;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+
+.chip {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.chip:hover {
+  background: var(--secondary);
+  color: var(--bg);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.screen {
+  position: relative;
+  flex: 1;
+  min-height: 140px;
+  border-radius: 12px;
+  background: radial-gradient(120% 100% at 50% 0%, #322a25 0%, var(--screen) 70%);
+  border: 1px solid #1b1714;
+  box-shadow: 0 2px 6px rgba(45, 41, 38, 0.25) inset;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+#pet {
+  width: 128px;
+  height: 128px;
+  image-rendering: pixelated;
+}
+
+.glass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.035) 0px,
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.gain {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--primary);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.gain.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.readout {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mood {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--secondary);
+  flex: none;
+}
+
+.stage {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.meter-head {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  margin-bottom: 3px;
+}
+
+.track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  transition: width 0.5s ease, background 0.4s ease;
+}
+
+.fill-satiety {
+  background: var(--primary);
+}
+
+.fill-health {
+  background: var(--success);
+}
+
+.foot {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-soft);
+  letter-spacing: 0.04em;
+}
+
+.cta {
+  -webkit-app-region: no-drag;
+  margin-top: 2px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fffdfa;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cta:hover {
+  background: var(--primary-hover);
+}
+
+.cta:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill,
+  .gain {
+    transition: none;
+  }
+}

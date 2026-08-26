@@ -1,0 +1,30 @@
+[tools]
+# Electron 43 exige Node 20+; fixamos no LTS 22.x.
+node = "22"
+
+[tasks.start]
+description = "Sobe o app Electron"
+run = "npm start"
+
+[tasks.dev]
+description = "Alias de start (modo desenvolvimento)"
+depends = ["start"]
+
+[tasks.doctor]
+description = "Varre os logs reais das ferramentas de IA (janela em horas, padrao 48)"
+usage = '''
+arg "<horas>" default="48" help="Janela de varredura em horas (720 = 30 dias)"
+'''
+run = "node scripts/doctor.js $usage_horas"
+
+[tasks.test]
+description = "Roda o selftest (nao precisa de npm install)"
+run = "node scripts/selftest.js"
+
+[tasks.show]
+description = "Traz a janela de volta se ela sumiu (escondida ou minimizada)"
+run = "curl -s localhost:4736/show && echo"
+
+[tasks.status]
+description = "Mostra o estado do bichinho em JSON"
+run = "curl -s localhost:4736/status && echo"

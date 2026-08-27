@@ -348,6 +348,34 @@ for (const [, id] of rendererJs.matchAll(/\bel\(\s*['"]([^'"]+)['"]\s*\)/g)) {
   assert.ok(htmlIds.has(id), `app.js usa el('${id}'), mas não existe id="${id}" no index.html`);
 }
 
+// A janela inteira é área de arrasto, então todo controle clicável precisa
+// estar declarado como no-drag — sem isso o clique vira arrasto e o botão fica
+// inerte, que foi o que aconteceu com o "Baixar" da faixa de atualização.
+// O CSS resolve isso por seletor de elemento; este teste guarda a regra.
+const rendererCss = fs.readFileSync(
+  path.join(__dirname, '..', 'src/renderer/style.css'),
+  'utf8'
+);
+const noDragRule = /(^|\})[^{}]*\bbutton\b[^{}]*\{[^{}]*-webkit-app-region:\s*no-drag/m;
+assert.ok(
+  noDragRule.test(rendererCss),
+  'style.css precisa declarar -webkit-app-region: no-drag para button, ' +
+    'senão qualquer botão novo nasce inerte dentro da região de arrasto'
+);
+
+// E todo elemento interativo do HTML precisa ser de um tipo coberto por essa
+// regra; um <div> clicável passaria despercebido.
+const interativos = [...rendererHtml.matchAll(/<(\w+)[^>]*\bid="(\w+)"/g)]
+  .filter(([, , id]) => new RegExp(`el\\('${id}'\\)[^;]*addEventListener\\('click'`).test(rendererJs))
+  .map(([, tag, id]) => ({ tag: tag.toLowerCase(), id }));
+for (const { tag, id } of interativos) {
+  assert.ok(
+    ['button', 'input', 'select', 'textarea', 'a'].includes(tag),
+    `#${id} recebe clique mas é <${tag}>, que não está coberto pela regra de no-drag`
+  );
+}
+assert.ok(interativos.length >= 4, 'esperava encontrar os elementos clicáveis do renderer');
+
 // Todo window.tokengotchi.X usado no renderer precisa existir no preload.
 for (const [, method] of rendererJs.matchAll(/window\.tokengotchi\.(\w+)/g)) {
   assert.ok(

@@ -48,6 +48,24 @@ body {
   -webkit-app-region: drag;
 }
 
+/*
+ * A janela inteira é área de arrasto (.shell acima), então TODO elemento
+ * clicável precisa se declarar fora dela — senão o clique vira arrasto da
+ * janela e o controle simplesmente não responde. Antes isso era lembrado
+ * caso a caso (.controls, .identity, .cta), e o botão "Baixar" da faixa de
+ * atualização nasceu sem, ficando inerte.
+ *
+ * Declarar de uma vez para todo controle interativo fecha a classe inteira
+ * do bug, em vez de corrigir uma ocorrência.
+ */
+button,
+input,
+select,
+textarea,
+a[href] {
+  -webkit-app-region: no-drag;
+}
+
 .bar {
   display: flex;
   align-items: center;

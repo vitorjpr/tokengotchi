@@ -119,6 +119,31 @@ usa suas ferramentas de IA.
 
 ---
 
+## Atualizando para uma versão nova
+
+O app **não se atualiza sozinho**. Quando sair uma versão nova, é só instalar
+por cima — do mesmo jeito que você instalou da primeira vez.
+
+**Seu bichinho não se perde.** O nome, a idade, a saciedade e a geração ficam
+guardados numa pasta separada do aplicativo, e instalar por cima não encosta
+nela. Você continua com o mesmo bichinho, na mesma fase.
+
+| Sistema | O que fazer |
+| --- | --- |
+| **Mac** | Baixe o `.dmg` novo e arraste para *Applications* de novo. Ele pergunta se quer substituir — diga que sim. |
+| **Windows** | Rode o novo `-Setup-<versão>.exe`. Ele atualiza sozinho, por cima. |
+| **Ubuntu/Debian** | Dê dois cliques no `.deb` novo, ou `sudo dpkg -i tokengotchi_<versão>_amd64.deb`. |
+| **Outro Linux** | Substitua o `.AppImage` antigo pelo novo. |
+
+Feche o Tokengotchi antes (menu do ícone perto do relógio → *Sair*), instale, e
+abra de novo.
+
+> Para saber qual versão você tem, o número aparece no nome do arquivo que você
+> baixou. A versão mais recente está sempre em
+> **[Releases](../../releases/latest)**.
+
+---
+
 ## Para quem programa
 
 O resto deste README é a parte técnica: como o app lê cada ferramenta, como rodar
@@ -427,6 +452,12 @@ O selftest não precisa do Electron nem de `npm install` — só de Node.
 Ao mexer nos parsers, adicione um caso em `scripts/selftest.js` com o formato **real**
 do log (um trecho colado do arquivo de verdade), não com um formato imaginado. Foi
 assim que apareceu o bug de contagem dupla do Codex.
+
+### Lançando uma versão
+
+O procedimento está em **[RELEASING.md](RELEASING.md)**. Em resumo: suba a versão
+com `npm version`, commite e empurre uma tag `vX.Y.Z` — o GitHub compila nos três
+sistemas e publica o release sozinho. Não crie o release pela interface.
 
 ## Detalhes chatos
 

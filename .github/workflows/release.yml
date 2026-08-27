@@ -32,6 +32,24 @@ jobs:
       - name: Instalar mise
         uses: jdx/mise-action@v2
 
+      # Os artefatos são nomeados a partir da versão do package.json, mas o
+      # release recebe o nome da tag. Se as duas divergirem, sai um release
+      # "v0.3.0" cheio de arquivos "0.2.0". Melhor falhar aqui do que publicar
+      # isso e ter que refazer a tag depois.
+      - name: Conferir se a tag bate com o package.json
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          pkg="v$(node -p "require('./package.json').version")"
+          tag="${GITHUB_REF_NAME}"
+          if [ "$pkg" != "$tag" ]; then
+            echo "tag $tag não bate com a versão do package.json ($pkg)." >&2
+            echo "Rode: npm version ${tag#v} --no-git-tag-version, commite e refaça a tag." >&2
+            exit 1
+          fi
+          echo "tag e package.json batem: $tag"
+
       - name: Instalar dependências
         run: npm ci
 

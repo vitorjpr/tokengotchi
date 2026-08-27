@@ -48,12 +48,15 @@ Não precisa saber programar. São três passos.
 
 Vá em **[Downloads (Releases)](../../releases/latest)** e baixe **um** arquivo:
 
-| Se você usa | Baixe este arquivo |
+| Se você usa | Baixe o arquivo que termina em |
 | --- | --- |
-| **Mac** (qualquer um, Intel ou M1/M2/M3/M4) | `Tokengotchi-0.1.0-universal.dmg` |
-| **Windows** | `Tokengotchi-Setup-0.1.0.exe` |
-| **Ubuntu / Linux Mint / Debian** | `tokengotchi_0.1.0_amd64.deb` |
-| **Outro Linux** | `Tokengotchi-0.1.0.AppImage` |
+| **Mac** (qualquer um, Intel ou M1/M2/M3/M4) | **`-universal.dmg`** |
+| **Windows** | **`-Setup-<versão>.exe`** |
+| **Ubuntu / Linux Mint / Debian** | **`_amd64.deb`** |
+| **Outro Linux** | **`.AppImage`** |
+
+Os nomes trazem o número da versão (por exemplo `Tokengotchi-0.2.0-universal.dmg`),
+que muda a cada lançamento — o que importa é a terminação.
 
 > No Mac é um arquivo só e ele serve para todos os modelos — você não precisa
 > descobrir qual processador o seu tem.

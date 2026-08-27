@@ -50,11 +50,14 @@ jobs:
         with:
           name: tokengotchi-${{ matrix.os }}
           retention-days: 7
+          # Precisa acompanhar os alvos em package.json > build. Um alvo novo
+          # que não esteja aqui é descartado em silêncio e some do release.
           path: |
             dist/*.dmg
             dist/*.zip
+            dist/*.exe
             dist/*.AppImage
-            dist/*.tar.gz
+            dist/*.deb
 
   release:
     needs: build

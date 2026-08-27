@@ -33,6 +33,7 @@
     "test": "node scripts/selftest.js",
     "doctor": "node scripts/doctor.js",
     "icon": "node scripts/make-icon.js",
+    "sprites": "node scripts/make-sprites.js",
     "dist": "electron-builder --mac --publish never",
     "dist:mac": "electron-builder --mac --publish never",
     "dist:win": "electron-builder --win --publish never",
@@ -56,15 +57,13 @@
         {
           "target": "dmg",
           "arch": [
-            "arm64",
-            "x64"
+            "universal"
           ]
         },
         {
           "target": "zip",
           "arch": [
-            "arm64",
-            "x64"
+            "universal"
           ]
         }
       ]
@@ -72,6 +71,13 @@
     "icon": "build/icon.png",
     "win": {
       "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
         {
           "target": "zip",
           "arch": [
@@ -92,7 +98,7 @@
           ]
         },
         {
-          "target": "tar.gz",
+          "target": "deb",
           "arch": [
             "x64",
             "arm64"
@@ -101,8 +107,16 @@
       ],
       "synopsis": "Bichinho de desktop alimentado pelos tokens que voce gasta com agentes de IA",
       "syncDesktopName": true,
-      "executableName": "tokengotchi"
+      "executableName": "tokengotchi",
+      "maintainer": "Vitor Rodrigues <vitorjprodrigues97@gmail.com>"
     },
-    "publish": null
+    "publish": null,
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false,
+      "shortcutName": "Tokengotchi"
+    }
   }
 }

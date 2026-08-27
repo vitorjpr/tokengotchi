@@ -1,53 +1,127 @@
 # Tokengotchi
 
-Um bichinho de desktop que vive dos tokens que você gasta com agentes de IA.
-Ele fica numa janelinha flutuante no canto da tela e na bandeja do sistema.
-Se você programa, ele come. Se você some por um dia e meio, ele morre.
+<p align="center">
+  <img src="docs/sprites/evolucao.png" alt="As seis fases do Tokengotchi: ovo, broto, filhote, jovem, adulto e ancião" width="640">
+</p>
 
-Roda em **macOS, Windows e Linux**.
+Um bichinho de estimação que mora num cantinho da sua tela e **se alimenta dos
+tokens que você gasta com inteligência artificial**.
 
-Fontes suportadas de fábrica: **Claude Code**, **Codex CLI**, **Grok CLI** e **Cursor**
-(este último por estimativa), mais um endpoint HTTP local para plugar qualquer outra coisa.
+Trabalhou bastante hoje com IA? Ele come bem, fica feliz e cresce. Passou o fim de
+semana longe do computador? Ele dorme, sente fome e, se você sumir de vez, morre —
+aí é só chocar um ovo novo e começar de novo.
 
-## Instalando
+Ele conta sozinho: não precisa apontar nada, nem digitar quanto você usou. O app lê
+o que as ferramentas de IA já anotam no seu próprio computador. **Nada é enviado
+para lugar nenhum** — tudo acontece na sua máquina.
 
-Baixe o pacote do seu sistema em [Releases](../../releases):
+Funciona com **Claude Code**, **Codex CLI**, **Grok CLI** e **Cursor**.
+Roda em **Mac, Windows e Linux**.
 
-| Sistema | Arquivo | Como usar |
-| --- | --- | --- |
-| macOS (Apple Silicon) | `Tokengotchi-<versão>-arm64.dmg` | arraste para `/Applications` |
-| macOS (Intel) | `Tokengotchi-<versão>.dmg` | arraste para `/Applications` |
-| Windows x64 | `Tokengotchi-<versão>-win.zip` | extraia e rode `Tokengotchi.exe` |
-| Windows ARM | `Tokengotchi-<versão>-arm64-win.zip` | extraia e rode `Tokengotchi.exe` |
-| Linux x64 | `Tokengotchi-<versão>.AppImage` | `chmod +x` e execute |
-| Linux ARM | `Tokengotchi-<versão>-arm64.AppImage` | `chmod +x` e execute |
+---
 
-Também há `.tar.gz` para Linux e `.zip` para macOS, se preferir sem instalador.
+## Como ele reage
 
-### Nenhum build é assinado
+O bichinho muda de cara conforme você usa (ou deixa de usar) a IA:
 
-Assinar custa dinheiro: conta paga no Apple Developer Program (macOS) e certificado
-de code signing (Windows). Enquanto não houver, cada sistema reclama na primeira
-abertura. Isso é normal em projeto open source sem assinatura e não diz nada sobre
-o conteúdo. Se preferir não confiar num binário pronto, compile do código (abaixo).
+| | | | |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/sprites/humor-feliz.png" width="90"> | <img src="docs/sprites/humor-comendo.png" width="90"> | <img src="docs/sprites/humor-dormindo.png" width="90"> | <img src="docs/sprites/humor-com-fome.png" width="90"> |
+| **Feliz**<br>barriga cheia | **Comendo**<br>chegou token novo | **Dormindo**<br>20 min parado | **Com fome**<br>começando a esvaziar |
+| <img src="docs/sprites/humor-faminto.png" width="90"> | <img src="docs/sprites/humor-fraco.png" width="90"> | <img src="docs/sprites/humor-morto.png" width="90"> | |
+| **Faminto**<br>barriga quase vazia | **Fraco**<br>saúde caindo | **Morto**<br>abandonado demais | |
 
-- **Windows:** o SmartScreen mostra "O Windows protegeu o computador" →
-  **Mais informações** → **Executar assim mesmo**.
-- **Linux:** o AppImage não é bloqueado; só precisa de `chmod +x`. Em algumas
-  distros a bandeja do sistema exige `libappindicator3` instalado.
-- **macOS:** ver abaixo.
+E cresce em seis fases, conforme o total que já comeu na vida:
 
-### macOS: "não foi possível verificar se contém malware"
+| | | | | | |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| <img src="docs/sprites/estagio-ovo.png" width="80"> | <img src="docs/sprites/estagio-broto.png" width="80"> | <img src="docs/sprites/estagio-filhote.png" width="80"> | <img src="docs/sprites/estagio-jovem.png" width="80"> | <img src="docs/sprites/estagio-adulto.png" width="80"> | <img src="docs/sprites/estagio-anciao.png" width="80"> |
+| ovo | broto | filhote | jovem | adulto | ancião |
 
-O app **não é notarizado** — notarização exige uma conta paga no Apple Developer
-Program. Então, na primeira abertura, o Gatekeeper reclama. Isso é esperado para
-qualquer app de código aberto sem notarização, e não diz nada sobre o conteúdo.
+---
 
-Para abrir: clique com o botão direito no app → **Abrir** → **Abrir** de novo no
-diálogo. O macOS guarda a exceção e nas próximas vezes abre direto.
+## Instalar
 
-Se preferir não confiar num binário pronto — o que é perfeitamente razoável —
-compile você mesmo a partir do código:
+Não precisa saber programar. São três passos.
+
+### 1. Baixe o arquivo do seu computador
+
+Vá em **[Downloads (Releases)](../../releases/latest)** e baixe **um** arquivo:
+
+| Se você usa | Baixe este arquivo |
+| --- | --- |
+| **Mac** (qualquer um, Intel ou M1/M2/M3/M4) | `Tokengotchi-0.1.0-universal.dmg` |
+| **Windows** | `Tokengotchi Setup 0.1.0.exe` |
+| **Ubuntu / Linux Mint / Debian** | `tokengotchi_0.1.0_amd64.deb` |
+| **Outro Linux** | `Tokengotchi-0.1.0.AppImage` |
+
+> No Mac é um arquivo só e ele serve para todos os modelos — você não precisa
+> descobrir qual processador o seu tem.
+
+### 2. Instale
+
+**No Mac:** abra o arquivo `.dmg` que você baixou. Vai aparecer uma janela com o
+bichinho e uma pasta chamada *Applications*. **Arraste o bichinho para cima dessa
+pasta.** Pronto, pode fechar a janela.
+
+**No Windows:** dê dois cliques no arquivo `.exe` que você baixou e espere. Ele se
+instala sozinho e abre no final. Não faz perguntas.
+
+**No Ubuntu/Debian:** dê dois cliques no arquivo `.deb` e clique em *Instalar*.
+
+**Outro Linux:** clique com o botão direito no `.AppImage` → *Propriedades* →
+*Permissões* → marque **"Permitir execução como programa"**. Depois é só dar dois
+cliques.
+
+### 3. Na primeira vez, seu computador vai desconfiar
+
+Isso é esperado e **não é vírus**. Acontece porque publicar um app "carimbado" pela
+Apple ou pela Microsoft custa uma assinatura anual paga, que este projeto não tem.
+O código-fonte está todo aqui nesta página, aberto para qualquer um conferir.
+
+**No Mac**, vai aparecer um aviso dizendo que não foi possível verificar o app.
+
+1. Abra a pasta **Aplicativos**
+2. Clique no **Tokengotchi** com o **botão direito** (ou segure `Control` e clique)
+3. Escolha **Abrir**
+4. No aviso que aparecer, clique em **Abrir** de novo
+
+Só precisa fazer isso **uma vez**. Depois ele abre normalmente com dois cliques.
+
+**No Windows**, pode aparecer uma tela azul escrito *"O Windows protegeu o seu
+computador"*.
+
+1. Clique em **Mais informações**
+2. Clique em **Executar assim mesmo**
+
+Também só na primeira vez.
+
+### Pronto! E agora?
+
+O bichinho aparece **no canto superior direito da tela** e um ícone dele fica na
+barra do sistema (perto do relógio). Ele já começa a comer sozinho conforme você
+usa suas ferramentas de IA.
+
+- **A janela sumiu?** Clique no ícone dele perto do relógio e escolha
+  *Mostrar bichinho*.
+- **Quer que ele abra junto com o computador?** No mesmo menu, marque
+  *Abrir no login*.
+- **Como fecho de vez?** No mesmo menu, *Sair*. Fechar só a janelinha não desliga
+  o bichinho.
+
+> **Ele não some da barra do sistema?** É de propósito: o Tokengotchi não aparece
+> na barra de tarefas nem no Dock, para não atrapalhar. Ele vive perto do relógio.
+
+---
+
+## Para quem programa
+
+O resto deste README é a parte técnica: como o app lê cada ferramenta, como rodar
+a partir do código e como contribuir.
+
+### Compilando do código
+
+Se preferir não baixar um binário pronto — o que é perfeitamente razoável:
 
 ```bash
 git clone https://github.com/vitorjpr/tokengotchi.git
@@ -55,15 +129,16 @@ cd tokengotchi
 mise trust && mise install
 mise exec -- npm install
 
-mise exec -- npm run dist:mac     # .dmg + .zip (arm64 e x64)
-mise exec -- npm run dist:win     # .zip (x64 e arm64)
-mise exec -- npm run dist:linux   # .AppImage + .tar.gz (x64 e arm64)
+mise exec -- npm run dist:mac     # .dmg + .zip (universal)
+mise exec -- npm run dist:win     # instalador .exe + .zip (x64 e arm64)
+mise exec -- npm run dist:linux   # .AppImage + .deb (x64 e arm64)
 ```
 
-Dá para cross-compilar os três a partir de qualquer um dos sistemas. A exceção é o
-instalador NSIS do Windows, que exige Wine fora do Windows — por isso o alvo aqui é
-`zip`, que não precisa. O caminho mais confiável é deixar o workflow `release.yml`
-compilar cada sistema no runner nativo.
+Os três compilam a partir de qualquer sistema — o electron-builder baixa a
+toolchain do NSIS sozinho, então o instalador do Windows sai até de um Mac. Ainda
+assim, o caminho mais confiável é deixar o workflow `release.yml` compilar cada
+sistema no runner nativo, porque cross-compilar produz o artefato mas não prova
+que ele abre.
 
 ## Setup com mise
 
@@ -279,9 +354,16 @@ hooks/feed.sh         atalho para alimentar via hook de qualquer ferramenta
 scripts/doctor.js     diagnóstico das fontes
 scripts/selftest.js   testes das regras e dos parsers (mise run test)
 scripts/make-icon.js  gera build/icon.png a partir de pixel art, sem dependências
+scripts/make-sprites.js  renderiza docs/sprites/*.png chamando o sprite.js real
 build/icon.png        ícone do app (1024x1024), consumido pelo electron-builder
+docs/sprites/         imagens do README, geradas — não editar à mão
 mise.toml             Node 22 + tasks do projeto
 ```
+
+As imagens do README não são desenhos separados: `scripts/make-sprites.js` carrega
+o `src/renderer/sprite.js` de verdade e chama o mesmo `draw()` que o app usa, contra
+um canvas 2D falso que grava os `fillRect` num buffer. Se o sprite mudar no app, as
+imagens mudam junto com `mise run sprites` — elas não têm como divergir do produto.
 
 Nenhuma dependência além do Electron.
 
@@ -314,6 +396,7 @@ mise run test           # selftest: parsers, leitura incremental, ciclo de vida
 mise run doctor 720     # o que o app enxerga na sua máquina
 mise run start          # sobe em modo dev
 mise run icon           # regenera build/icon.png a partir da arte em scripts/make-icon.js
+mise run sprites        # regenera as imagens do README a partir do sprite.js real
 ```
 
 O CI (GitHub Actions) roda `mise run test` e `mise run doctor` a cada push e PR.

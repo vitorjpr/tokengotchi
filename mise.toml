@@ -28,3 +28,11 @@ run = "curl -s localhost:4736/show && echo"
 [tasks.status]
 description = "Mostra o estado do bichinho em JSON"
 run = "curl -s localhost:4736/status && echo"
+
+[tasks.icon]
+description = "Regenera build/icon.png a partir da pixel art"
+run = "node scripts/make-icon.js"
+
+[tasks.sprites]
+description = "Regenera as imagens de docs/sprites usadas no README"
+run = "node scripts/make-sprites.js"

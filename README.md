@@ -50,7 +50,7 @@ Se preferir não confiar num binário pronto — o que é perfeitamente razoáve
 compile você mesmo a partir do código:
 
 ```bash
-git clone https://github.com/SEU-USUARIO/tokengotchi.git
+git clone https://github.com/vitorjpr/tokengotchi.git
 cd tokengotchi
 mise trust && mise install
 mise exec -- npm install

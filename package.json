@@ -4,6 +4,14 @@
   "description": "Um bichinho de estimação de desktop alimentado pelos tokens que você gasta com agentes de IA.",
   "author": "Vitor Rodrigues",
   "license": "MIT",
+  "homepage": "https://github.com/vitorjpr/tokengotchi#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vitorjpr/tokengotchi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vitorjpr/tokengotchi/issues"
+  },
   "keywords": [
     "electron",
     "macos",
@@ -19,6 +27,7 @@
     "node": ">=20"
   },
   "main": "src/main/main.js",
+  "desktopName": "tokengotchi.desktop",
   "scripts": {
     "start": "electron .",
     "test": "node scripts/selftest.js",
@@ -94,6 +103,5 @@
       "syncDesktopName": true,
       "executableName": "tokengotchi"
     }
-  },
-  "desktopName": "tokengotchi.desktop"
+  }
 }

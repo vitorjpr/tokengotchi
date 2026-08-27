@@ -42,10 +42,38 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+const DEFAULT_NAME = 'Tokengotchi';
+const MAX_NAME_LENGTH = 18;
+
+/**
+ * O nome vem digitado pelo usuário e acaba em disco, no tooltip da bandeja e no
+ * menu, então é normalizado antes de entrar: sem quebras de linha nem caracteres
+ * de controle, espaços colapsados e um teto de comprimento — a janela tem 250px
+ * e um nome gigante estouraria o cabeçalho.
+ *
+ * Nome vazio não é erro: significa "volta para o padrão".
+ */
+function sanitizeName(raw) {
+  if (typeof raw !== 'string') return DEFAULT_NAME;
+  const clean = raw
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_NAME_LENGTH)
+    .trim();
+  return clean.length > 0 ? clean : DEFAULT_NAME;
+}
+
+function renamePet(pet, raw) {
+  pet.name = sanitizeName(raw);
+  return pet.name;
+}
+
 function freshPet(now, generation = 1) {
   return {
     version: 1,
-    name: 'Tokengotchi',
+    name: DEFAULT_NAME,
     generation,
     bornAt: now,
     lastTickAt: now,
@@ -200,7 +228,11 @@ class Store {
   loadPet(now = Date.now()) {
     try {
       const raw = JSON.parse(fs.readFileSync(this.petPath, 'utf8'));
-      return { pet: { ...freshPet(now), ...raw }, isNew: false };
+      const pet = { ...freshPet(now), ...raw };
+      // O arquivo é editável à mão; um nome estragado lá não pode virar
+      // cabeçalho quebrado nem tooltip com caractere de controle.
+      pet.name = sanitizeName(pet.name);
+      return { pet, isNew: false };
     } catch {
       return { pet: freshPet(now), isNew: true };
     }
@@ -233,6 +265,10 @@ module.exports = {
   TUNING,
   STAGES,
   Store,
+  DEFAULT_NAME,
+  MAX_NAME_LENGTH,
+  sanitizeName,
+  renamePet,
   freshPet,
   tick,
   moodFor,

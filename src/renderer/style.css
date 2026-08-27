@@ -54,17 +54,67 @@ body {
   justify-content: space-between;
 }
 
-.brand {
+.identity {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  min-width: 0;
+  /* Editar o nome é clique, não arrasto da janela. */
+  -webkit-app-region: no-drag;
+}
+
+/* Botão que se passa por texto: o nome só revela que é editável no hover. */
+.name {
+  max-width: 150px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px dashed transparent;
+  background: none;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-soft);
+  cursor: text;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.name:hover {
+  color: var(--text);
+  border-bottom-color: var(--secondary);
+}
+
+.name:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.name-input {
+  width: 150px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--primary);
+  background: none;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+  outline: none;
 }
 
 .gen {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text-soft);
   opacity: 0.55;
   margin-left: 2px;
+  flex: none;
 }
 
 .controls {

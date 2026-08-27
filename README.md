@@ -102,6 +102,8 @@ O bichinho aparece **no canto superior direito da tela** e um ícone dele fica n
 barra do sistema (perto do relógio). Ele já começa a comer sozinho conforme você
 usa suas ferramentas de IA.
 
+- **Dar um nome a ele:** clique no nome dele no topo da janelinha, digite e
+  aperte `Enter`. Também dá pelo menu do ícone, em *Renomear o bichinho…*.
 - **A janela sumiu?** Clique no ícone dele perto do relógio e escolha
   *Mostrar bichinho*.
 - **Quer que ele abra junto com o computador?** No mesmo menu, marque
@@ -242,6 +244,23 @@ novo ovo e a geração sobe.
 
 O tempo passa mesmo com o app fechado — ele calcula o decaimento pelo relógio ao abrir,
 com teto de 7 dias.
+
+### Geração
+
+O número ao lado do nome (`·1`, `·2`, …) é a **geração**: quantos bichinhos já
+passaram por aí. Ele começa em 1 e sobe toda vez que um morre e você choca um ovo
+novo. Não é um identificador fixo do bichinho atual.
+
+### Nome
+
+O bichinho nasce como *Tokengotchi* e pode ser renomeado a qualquer momento:
+clique no nome no alto da janela, ou use *Renomear o bichinho…* no menu da bandeja.
+O nome fica salvo no `pet.json` e sobrevive a reinícios.
+
+Nome em branco volta ao padrão. Espaços das pontas são aparados, espaços repetidos
+viram um só, quebras de linha viram espaço e o limite é 18 caracteres — a janela
+tem 250px e um nome maior estouraria o cabeçalho. Acentos são preservados.
+Chocar um ovo novo devolve o nome padrão, porque é outro bichinho.
 
 ### Evolução
 

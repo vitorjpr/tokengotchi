@@ -8,7 +8,22 @@
   <body>
     <main class="shell" id="shell">
       <header class="bar">
-        <span class="brand">tokengotchi<span class="gen" id="gen">·1</span></span>
+        <div class="identity">
+          <button class="name" id="name" title="Clique para dar um nome ao bichinho">
+            Tokengotchi
+          </button>
+          <input
+            class="name-input"
+            id="nameInput"
+            type="text"
+            maxlength="18"
+            spellcheck="false"
+            autocomplete="off"
+            aria-label="Nome do bichinho"
+            hidden
+          />
+          <span class="gen" id="gen">·1</span>
+        </div>
         <div class="controls">
           <button class="chip" id="hide" title="Esconder">–</button>
           <button class="chip" id="quit" title="Sair">×</button>

@@ -215,6 +215,93 @@ harvest = sources.collect({ sources: [ccSource] }, freshCursors, {
 });
 assert.strictEqual(harvest.tokens, 0, 'primeira execução apenas marca posição');
 
+// --- nome do bichinho ---
+// O nome é digitado pelo usuário e vai parar em disco, no tooltip da bandeja e
+// no cabeçalho de uma janela de 250px, então é normalizado na entrada.
+assert.strictEqual(petLib.sanitizeName('  Migu  '), 'Migu', 'apara espaços nas pontas');
+assert.strictEqual(petLib.sanitizeName('a   b'), 'a b', 'colapsa espaços internos');
+assert.strictEqual(petLib.sanitizeName('Ção Àcentuada'), 'Ção Àcentuada', 'preserva acentos');
+assert.strictEqual(
+  petLib.sanitizeName('quebra\nde\tlinha'),
+  'quebra de linha',
+  'troca caracteres de controle por espaço'
+);
+assert.strictEqual(
+  petLib.sanitizeName('x'.repeat(50)).length,
+  petLib.MAX_NAME_LENGTH,
+  'corta no comprimento máximo'
+);
+
+// Nome vazio não é erro: volta para o padrão.
+for (const vazio of ['', '   ', '\n\t', null, undefined, 42, {}]) {
+  assert.strictEqual(
+    petLib.sanitizeName(vazio),
+    petLib.DEFAULT_NAME,
+    `entrada sem nome útil (${JSON.stringify(vazio)}) volta ao padrão`
+  );
+}
+
+const nomeado = petLib.freshPet(Date.now());
+assert.strictEqual(nomeado.name, petLib.DEFAULT_NAME, 'bichinho novo nasce com o nome padrão');
+assert.strictEqual(petLib.renamePet(nomeado, '  Migu '), 'Migu', 'renomear devolve o nome aplicado');
+assert.strictEqual(nomeado.name, 'Migu', 'renomear altera o bichinho');
+assert.strictEqual(petLib.snapshot(nomeado, Date.now()).name, 'Migu', 'snapshot expõe o nome');
+
+// O nome sobrevive a salvar e recarregar, e um pet.json editado à mão com lixo
+// no nome não pode voltar como está.
+const storeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tokengotchi-store-'));
+const store = new petLib.Store(storeDir);
+store.savePet(nomeado);
+assert.strictEqual(store.loadPet().pet.name, 'Migu', 'nome persiste entre execuções');
+
+const petFile = path.join(storeDir, 'pet.json');
+const sujo = JSON.parse(fs.readFileSync(petFile, 'utf8'));
+sujo.name = '   nome\ncom\nlixo   ';
+fs.writeFileSync(petFile, JSON.stringify(sujo));
+assert.strictEqual(
+  store.loadPet().pet.name,
+  'nome com lixo',
+  'nome estragado no arquivo é normalizado ao carregar'
+);
+fs.rmSync(storeDir, { recursive: true, force: true });
+
+// --- fiação do renderer ---
+// O renderer não roda aqui (precisa de Electron), mas os contratos entre os
+// arquivos são texto e dá para conferir: um id com erro de digitação só
+// apareceria abrindo o app, e um método ausente no preload vira
+// "undefined is not a function" na cara do usuário.
+const rendererJs = fs.readFileSync(path.join(__dirname, '..', 'src/renderer/app.js'), 'utf8');
+const rendererHtml = fs.readFileSync(path.join(__dirname, '..', 'src/renderer/index.html'), 'utf8');
+const preloadJs = fs.readFileSync(path.join(__dirname, '..', 'src/main/preload.js'), 'utf8');
+const mainJs = fs.readFileSync(path.join(__dirname, '..', 'src/main/main.js'), 'utf8');
+
+const htmlIds = new Set([...rendererHtml.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
+for (const [, id] of rendererJs.matchAll(/\bel\(\s*['"]([^'"]+)['"]\s*\)/g)) {
+  assert.ok(htmlIds.has(id), `app.js usa el('${id}'), mas não existe id="${id}" no index.html`);
+}
+
+// Todo window.tokengotchi.X usado no renderer precisa existir no preload.
+for (const [, method] of rendererJs.matchAll(/window\.tokengotchi\.(\w+)/g)) {
+  assert.ok(
+    new RegExp(`\\b${method}\\s*:`).test(preloadJs),
+    `renderer chama window.tokengotchi.${method}, ausente no preload.js`
+  );
+}
+
+// E todo canal que o preload invoca precisa ter handler no main.
+for (const [, channel] of preloadJs.matchAll(/ipcRenderer\.invoke\('([^']+)'/g)) {
+  assert.ok(
+    mainJs.includes(`ipcMain.handle('${channel}'`),
+    `preload invoca '${channel}', sem ipcMain.handle correspondente no main.js`
+  );
+}
+for (const [, channel] of preloadJs.matchAll(/ipcRenderer\.send\('([^']+)'/g)) {
+  assert.ok(
+    mainJs.includes(`ipcMain.on('${channel}'`),
+    `preload envia '${channel}', sem ipcMain.on correspondente no main.js`
+  );
+}
+
 // --- regras do bichinho ---
 const now = Date.now();
 let pet = petLib.freshPet(now);

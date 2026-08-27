@@ -17,6 +17,7 @@ let state = {
 };
 let frame = 0;
 let lastTokens = 0;
+let editingName = false;
 
 const MOOD_COLOR = {
   feliz: '#5f8d4e',
@@ -42,6 +43,9 @@ function formatCountdown(hours) {
 }
 
 function render() {
+  // Enquanto o campo está aberto, não sobrescreve o que a pessoa está digitando:
+  // a varredura de fontes empurra estado novo a cada 8s.
+  if (!editingName) el('name').textContent = state.name || 'Tokengotchi';
   el('gen').textContent = `·${state.generation}`;
   el('moodLabel').textContent = state.dead ? 'morreu de fome' : state.mood;
   el('stageLabel').textContent = state.stageLabel || state.stage;
@@ -83,6 +87,60 @@ window.tokengotchi.onState((incoming) => {
   lastTokens = incoming.lifetimeTokens;
   state = incoming;
   render();
+});
+
+// --- renomear o bichinho ---
+
+function startEditingName() {
+  if (editingName) return;
+  editingName = true;
+
+  const input = el('nameInput');
+  input.value = state.name || '';
+  el('name').hidden = true;
+  input.hidden = false;
+  input.focus();
+  input.select();
+}
+
+function stopEditingName(commit) {
+  if (!editingName) return;
+  editingName = false;
+
+  const input = el('nameInput');
+  input.hidden = true;
+  el('name').hidden = false;
+
+  if (commit) {
+    // O main devolve o nome já normalizado — pode diferir do que foi digitado
+    // (espaços, tamanho), então é ele que vale, não o conteúdo do campo.
+    window.tokengotchi.rename(input.value).then((applied) => {
+      state = { ...state, name: applied };
+      render();
+    });
+  } else {
+    render();
+  }
+}
+
+el('name').addEventListener('click', startEditingName);
+
+el('nameInput').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    stopEditingName(true);
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    stopEditingName(false);
+  }
+});
+
+// Clicar fora confirma, que é o que se espera de um campo assim.
+el('nameInput').addEventListener('blur', () => stopEditingName(true));
+
+// "Renomear o bichinho…" no menu da bandeja abre o campo já pronto.
+window.tokengotchi.onRenameRequest(() => {
+  requestAnimationFrame(startEditingName);
 });
 
 el('hide').addEventListener('click', () => window.tokengotchi.hide());

@@ -154,6 +154,13 @@ function buildTrayMenu() {
       click: () => toggleWindow()
     },
     {
+      label: 'Renomear o bichinho…',
+      click: () => {
+        revealWindow();
+        if (win && !win.isDestroyed()) win.webContents.send('pet:rename-request');
+      }
+    },
+    {
       label: 'Chocar um novo ovo',
       click: () => hatch()
     },
@@ -325,6 +332,13 @@ app.on('window-all-closed', (event) => {
 app.on('before-quit', () => {
   if (ingestServer) ingestServer.close();
   if (pet && store) store.savePet(pet);
+});
+
+ipcMain.handle('pet:rename', (_event, name) => {
+  const applied = petLib.renamePet(pet, name);
+  store.savePet(pet);
+  push();
+  return applied;
 });
 
 ipcMain.handle('pet:hatch', () => {

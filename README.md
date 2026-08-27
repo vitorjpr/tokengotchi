@@ -51,7 +51,7 @@ Vá em **[Downloads (Releases)](../../releases/latest)** e baixe **um** arquivo:
 | Se você usa | Baixe este arquivo |
 | --- | --- |
 | **Mac** (qualquer um, Intel ou M1/M2/M3/M4) | `Tokengotchi-0.1.0-universal.dmg` |
-| **Windows** | `Tokengotchi Setup 0.1.0.exe` |
+| **Windows** | `Tokengotchi-Setup-0.1.0.exe` |
 | **Ubuntu / Linux Mint / Debian** | `tokengotchi_0.1.0_amd64.deb` |
 | **Outro Linux** | `Tokengotchi-0.1.0.AppImage` |
 

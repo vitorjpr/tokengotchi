@@ -7,6 +7,7 @@ const path = require('path');
 const sources = require('./sources');
 const petLib = require('./pet');
 const { startIngest } = require('./ingest');
+const updates = require('./updates');
 
 const POLL_MS = 8000;
 const WINDOW = { width: 250, height: 330 };
@@ -19,6 +20,7 @@ let cursors = {};
 let config = null;
 let ingestServer = null;
 let lastScan = { at: 0, bySource: {} };
+let updateInfo = null;
 
 // Uma instância só. Com "abrir no login" ligado, abrir o app de novo pela mão
 // criaria um segundo processo brigando pela porta 4736 e pelo mesmo cursors.json
@@ -153,6 +155,15 @@ function buildTrayMenu() {
       label: win && win.isVisible() ? 'Esconder bichinho' : 'Mostrar bichinho',
       click: () => toggleWindow()
     },
+    ...(updateInfo?.available
+      ? [
+          {
+            label: `Baixar a versão ${updateInfo.latest}`,
+            click: () => shell.openExternal(updateInfo.url)
+          },
+          { type: 'separator' }
+        ]
+      : []),
     {
       label: 'Renomear o bichinho…',
       click: () => {
@@ -238,13 +249,47 @@ function hatch() {
   push();
 }
 
-function push() {
+/**
+ * O estado que o renderer recebe, num lugar só. Antes cada caminho montava o
+ * seu: o push trazia scan e update, o snapshot só o scan, e o hatch nenhum dos
+ * dois — então recarregar a janela fazia o aviso de versão sumir até o próximo
+ * ciclo de varredura.
+ */
+function rendererState() {
   const snap = petLib.snapshot(pet);
   snap.scan = lastScan;
+  snap.update = updateInfo;
+  return snap;
+}
+
+function push() {
+  const snap = rendererState();
   if (win && !win.isDestroyed()) win.webContents.send('pet:state', snap);
   if (tray) {
     tray.setToolTip(`${snap.name} — saciedade ${snap.satiety}%, saúde ${snap.health}%`);
     tray.setContextMenu(buildTrayMenu());
+  }
+}
+
+/**
+ * Única saída de rede do app. Desligável em `updates.enabled` no sources.json;
+ * quem não quiser nenhum tráfego põe false e nada é requisitado.
+ */
+async function checkUpdates() {
+  if (config.updates?.enabled === false) return;
+  try {
+    const found = await updates.checkForUpdate({
+      currentVersion: app.getVersion(),
+      userAgent: `Tokengotchi/${app.getVersion()}`
+    });
+    // Só guarda quando há novidade: sem rede o resultado é null e o aviso
+    // anterior (se havia) continua valendo em vez de piscar.
+    if (found && found.available) {
+      updateInfo = found;
+      push();
+    }
+  } catch (err) {
+    console.error('[tokengotchi] checagem de versão falhou:', err.message);
   }
 }
 
@@ -309,6 +354,12 @@ app.whenReady().then(() => {
   scanAndTick(firstRun);
   setInterval(() => scanAndTick(false), POLL_MS);
 
+  // Atrasada para não competir com a abertura da janela, e repetida para quem
+  // deixa o app semanas aberto.
+  setTimeout(checkUpdates, 4000);
+  const updateHours = config.updates?.checkIntervalHours ?? 24;
+  setInterval(checkUpdates, Math.max(1, updateHours) * 3_600_000);
+
   if (config.ingest?.enabled !== false) {
     ingestServer = startIngest({
       port: config.ingest?.port || 4736,
@@ -343,17 +394,19 @@ ipcMain.handle('pet:rename', (_event, name) => {
 
 ipcMain.handle('pet:hatch', () => {
   hatch();
-  return petLib.snapshot(pet);
+  return rendererState();
 });
 
-ipcMain.handle('pet:snapshot', () => {
-  const snap = petLib.snapshot(pet);
-  snap.scan = lastScan;
-  return snap;
-});
+ipcMain.handle('pet:snapshot', () => rendererState());
 
 ipcMain.on('window:hide', () => {
   if (win) win.hide();
 });
 
 ipcMain.on('window:quit', () => app.quit());
+
+ipcMain.on('update:open', () => {
+  // Só abre a URL que veio da API do GitHub, nunca uma vinda do renderer.
+  if (updateInfo?.url) shell.openExternal(updateInfo.url);
+  else shell.openExternal(updates.RELEASES_PAGE);
+});

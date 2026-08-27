@@ -10,6 +10,7 @@ const path = require('path');
 
 const sources = require('../src/main/sources');
 const petLib = require('../src/main/pet');
+const updates = require('../src/main/updates');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tokengotchi-test-'));
 const HOUR = 3_600_000;
@@ -264,6 +265,73 @@ assert.strictEqual(
   'nome estragado no arquivo é normalizado ao carregar'
 );
 fs.rmSync(storeDir, { recursive: true, force: true });
+
+// --- aviso de versão nova ---
+// Comparação numérica, não alfabética: "0.10.0" > "0.9.0" é o caso que
+// comparação por string erra.
+assert.strictEqual(updates.compareVersions('0.10.0', '0.9.0'), 1, '0.10.0 é maior que 0.9.0');
+assert.strictEqual(updates.compareVersions('1.0.0', '0.99.99'), 1, 'major manda');
+assert.strictEqual(updates.compareVersions('0.2.1', '0.2.0'), 1, 'patch conta');
+assert.strictEqual(updates.compareVersions('0.2.0', '0.2.0'), 0, 'iguais');
+assert.strictEqual(updates.compareVersions('0.1.0', '0.2.0'), -1, 'menor');
+assert.strictEqual(updates.compareVersions('v0.3.0', '0.2.0'), 1, 'aceita o v da tag');
+assert.strictEqual(updates.compareVersions('lixo', '0.1.0'), null, 'entrada inválida vira null');
+assert.strictEqual(updates.compareVersions('0.1.0', undefined), null, 'sem versão atual vira null');
+
+assert.ok(updates.isNewer('0.3.0', '0.2.0'), 'detecta versão nova');
+assert.ok(!updates.isNewer('0.2.0', '0.2.0'), 'mesma versão não é novidade');
+assert.ok(!updates.isNewer('0.1.0', '0.2.0'), 'versão antiga não é novidade');
+
+const releaseNovo = {
+  tag_name: 'v0.3.0',
+  html_url: 'https://github.com/vitorjpr/tokengotchi/releases/tag/v0.3.0',
+  draft: false,
+  prerelease: false
+};
+assert.deepStrictEqual(
+  updates.parseRelease(releaseNovo, '0.2.0'),
+  {
+    available: true,
+    latest: '0.3.0',
+    current: '0.2.0',
+    url: 'https://github.com/vitorjpr/tokengotchi/releases/tag/v0.3.0'
+  },
+  'release novo vira aviso'
+);
+assert.strictEqual(
+  updates.parseRelease({ ...releaseNovo, tag_name: 'v0.2.0' }, '0.2.0').available,
+  false,
+  'mesma versão não avisa'
+);
+
+// Rascunho e pré-lançamento não podem virar aviso: quem baixa é usuário final.
+assert.strictEqual(
+  updates.parseRelease({ ...releaseNovo, draft: true }, '0.2.0'),
+  null,
+  'rascunho é ignorado'
+);
+assert.strictEqual(
+  updates.parseRelease({ ...releaseNovo, prerelease: true }, '0.2.0'),
+  null,
+  'pré-lançamento é ignorado'
+);
+
+// Resposta estragada não pode derrubar o app.
+for (const ruim of [null, undefined, 'texto', {}, { tag_name: 'sem-numero' }]) {
+  assert.strictEqual(
+    updates.parseRelease(ruim, '0.2.0'),
+    null,
+    `resposta inválida (${JSON.stringify(ruim)}) vira null`
+  );
+}
+
+// A versão do package.json precisa ser legível pelo próprio comparador —
+// se alguém escrever "0.3" ali, o aviso silenciaria sem ninguém notar.
+const pkgVersion = require('../package.json').version;
+assert.ok(
+  updates.parseVersion(pkgVersion),
+  `versão do package.json (${pkgVersion}) precisa ser X.Y.Z`
+);
 
 // --- fiação do renderer ---
 // O renderer não roda aqui (precisa de Electron), mas os contratos entre os

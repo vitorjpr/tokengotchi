@@ -113,6 +113,9 @@ usa suas ferramentas de IA.
   *Abrir no login*.
 - **Como fecho de vez?** No mesmo menu, *Sair*. Fechar só a janelinha não desliga
   o bichinho.
+- **Saiu versão nova?** Quando houver, aparece uma faixa no rodapé da janelinha
+  com o botão *Baixar*. O app não se atualiza sozinho — o botão só abre a página
+  de download.
 
 > **Ele não some da barra do sistema?** É de propósito: o Tokengotchi não aparece
 > na barra de tarefas nem no Dock, para não atrapalhar. Ele vive perto do relógio.
@@ -371,6 +374,29 @@ Para plugar no Claude Code como hook, em `~/.claude/settings.json`:
 (Não é necessário para o Claude Code — ele já é lido direto do disco. Serve de modelo
 para qualquer outro agente que tenha hooks.)
 
+## Aviso de versão nova
+
+Ao abrir, e depois a cada 24h, o app consulta o endpoint público de releases do
+GitHub e mostra uma faixa no rodapé da janela se houver versão mais nova. O item
+também aparece no menu da bandeja. **Não há atualização automática**: o botão só
+abre a página de download.
+
+Essa é a **única** requisição de rede que o app faz. Nada do bichinho é enviado —
+nem tokens, nem contagens, nem identificador. O GitHub vê o que veria em qualquer
+visita ao site: o seu IP e o User-Agent (`Tokengotchi/<versão>`).
+
+Para desligar, em `sources.json`:
+
+```json
+"updates": { "enabled": false, "checkIntervalHours": 24 }
+```
+
+Com `enabled: false` nenhuma requisição é feita. Sem rede, atrás de proxy ou com
+o GitHub fora do ar, a checagem falha em silêncio e o app segue normal.
+
+Releases marcados como rascunho ou pré-lançamento são ignorados. A comparação é
+numérica por campo, não alfabética — `0.10.0` é corretamente maior que `0.9.0`.
+
 ## Configuração
 
 Na primeira execução, o app copia `config/default-sources.json` para a pasta de
@@ -395,6 +421,7 @@ src/main/main.js      janela, tray, loop de varredura a cada 8s
 src/main/sources.js   leitura incremental dos logs + parsers por ferramenta
 src/main/pet.js       fome, saúde, evolução, persistência
 src/main/ingest.js    servidor HTTP local (/feed, /status, /show, /hide)
+src/main/updates.js   checagem de versão nova (única saída de rede do app)
 src/renderer/         a janelinha: pixel art em canvas + medidores
 config/               fontes padrão, copiadas para o Application Support na 1ª vez
 hooks/feed.sh         atalho para alimentar via hook de qualquer ferramenta
@@ -464,4 +491,4 @@ sistemas e publica o release sozinho. Não crie o release pela interface.
 - A janela é sem moldura e arrastável por qualquer parte que não seja botão.
 - O app não aparece no Dock nem na barra de tarefas, só na bandeja do sistema. Fechar a janela não mata o processo — use `Sair` no menu da bandeja, ou `mise run show` para trazer a janela de volta.
 - O ícone da bandeja é monocromático no macOS (*template image*, que o sistema inverte conforme o tema) e colorido no Windows e no Linux, que não suportam esse recurso e desenhariam um quadrado preto invisível em bandeja escura.
-- Nada sai da sua máquina: leitura local de arquivos e um servidor que só escuta em `127.0.0.1`.
+- Seus dados não saem da máquina: a leitura dos logs é local e o servidor só escuta em `127.0.0.1`. A **única** requisição de rede que o app faz é consultar o endpoint público de releases do GitHub para avisar de versão nova — nenhum dado do bichinho é enviado, e dá para desligar (veja *Aviso de versão nova*).

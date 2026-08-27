@@ -67,5 +67,9 @@
   "ingest": {
     "enabled": true,
     "port": 4736
+  },
+  "updates": {
+    "enabled": true,
+    "checkIntervalHours": 24
   }
 }

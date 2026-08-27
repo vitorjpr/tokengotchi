@@ -64,6 +64,10 @@ function render() {
     : formatCountdown(state.hoursUntilDeath);
 
   el('hatch').hidden = !state.dead;
+
+  const update = state.update;
+  el('update').hidden = !(update && update.available);
+  if (update && update.available) el('updateVersion').textContent = update.latest;
 }
 
 function showGain(tokens) {
@@ -142,6 +146,8 @@ el('nameInput').addEventListener('blur', () => stopEditingName(true));
 window.tokengotchi.onRenameRequest(() => {
   requestAnimationFrame(startEditingName);
 });
+
+el('updateOpen').addEventListener('click', () => window.tokengotchi.openUpdate());
 
 el('hide').addEventListener('click', () => window.tokengotchi.hide());
 el('quit').addEventListener('click', () => window.tokengotchi.quit());

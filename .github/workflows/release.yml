@@ -92,18 +92,38 @@ jobs:
           printf 'anexando %s arquivo(s):\n' "${#files[@]}"
           printf '  %s\n' "${files[@]}"
 
-          # Publicado direto, sem rascunho. Rascunho no GitHub é visível só
-          # para o dono do repositório: de fora aparece a tag sem nenhum
-          # download, e foi exatamente assim que a v0.1.0 passou dias parecendo
-          # que não tinha binário. O job só roda depois que os três builds
-          # passam (needs: build), então build quebrado não vira release.
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "${files[@]}" --clobber
-            gh release edit "$TAG" --draft=false --latest
-          else
-            gh release create "$TAG" \
-              --title "$TAG" \
-              --generate-notes \
-              --latest \
-              "${files[@]}"
+          # Sobe em três tempos: cria como rascunho, anexa cada arquivo com
+          # repetição, e só então publica. Assim o release só fica visível
+          # quando está completo, e um upload que falhe não deixa um release
+          # público pela metade.
+          #
+          # A repetição existe porque a API de upload devolve 400 esporádico em
+          # arquivo grande — foi o que derrubou a primeira tentativa da v0.2.0,
+          # num .AppImage de 121 MB. Subir um a um também evita que uma falha no
+          # último arquivo descarte os oito que já tinham subido.
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --draft --title "$TAG" --generate-notes
           fi
+
+          for file in "${files[@]}"; do
+            nome=$(basename "$file")
+            enviado=0
+            for tentativa in 1 2 3 4; do
+              if gh release upload "$TAG" "$file" --clobber; then
+                echo "  ok: $nome"
+                enviado=1
+                break
+              fi
+              echo "  tentativa $tentativa falhou para $nome" >&2
+              sleep $((tentativa * 15))
+            done
+            if [ "$enviado" -ne 1 ]; then
+              echo "não consegui subir $nome após 4 tentativas" >&2
+              exit 1
+            fi
+          done
+
+          # Publica só no fim, com tudo anexado. Rascunho é invisível de fora:
+          # a v0.1.0 passou dias parecendo que não tinha binário por causa disso.
+          gh release edit "$TAG" --draft=false --latest
+          echo "release publicado com ${#files[@]} arquivos"

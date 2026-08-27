@@ -64,10 +64,11 @@ jobs:
         with:
           path: artifacts
 
-      # Feito com o gh em vez de uma action de release: a action criou três
-      # drafts para a mesma tag numa execução só, espalhando os artefatos
-      # entre eles. Aqui a criação é explícita e idempotente — se o draft já
-      # existe, os arquivos só são anexados por cima.
+      # Um único criador de release, explícito e idempotente. Os jobs de build
+      # rodam com --publish never justamente para não competirem com este passo:
+      # o electron-builder, ao ver GH_TOKEN e uma tag, publica um draft por
+      # conta própria, e com três jobs em paralelo isso rendia drafts
+      # duplicados com os artefatos espalhados entre eles.
       - name: Criar release
         env:
           GH_TOKEN: ${{ github.token }}

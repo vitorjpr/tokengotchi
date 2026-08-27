@@ -33,10 +33,10 @@
     "test": "node scripts/selftest.js",
     "doctor": "node scripts/doctor.js",
     "icon": "node scripts/make-icon.js",
-    "dist": "electron-builder --mac",
-    "dist:mac": "electron-builder --mac",
-    "dist:win": "electron-builder --win",
-    "dist:linux": "electron-builder --linux"
+    "dist": "electron-builder --mac --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:linux": "electron-builder --linux --publish never"
   },
   "devDependencies": {
     "electron": "^43.4.1",
@@ -102,6 +102,7 @@
       "synopsis": "Bichinho de desktop alimentado pelos tokens que voce gasta com agentes de IA",
       "syncDesktopName": true,
       "executableName": "tokengotchi"
-    }
+    },
+    "publish": null
   }
 }

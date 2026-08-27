@@ -71,6 +71,10 @@ jobs:
       - name: Criar release
         env:
           GH_TOKEN: ${{ github.token }}
+          # Este job não faz checkout (só baixa artefatos), então o gh não tem
+          # repositório git de onde inferir o destino. Sem isto ele falha com
+          # "fatal: not a git repository".
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         shell: bash
         run: |

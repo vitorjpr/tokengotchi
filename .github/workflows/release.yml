@@ -64,9 +64,32 @@ jobs:
         with:
           path: artifacts
 
+      # Feito com o gh em vez de uma action de release: a action criou três
+      # drafts para a mesma tag numa execução só, espalhando os artefatos
+      # entre eles. Aqui a criação é explícita e idempotente — se o draft já
+      # existe, os arquivos só são anexados por cima.
       - name: Criar release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/**/*
-          generate_release_notes: true
-          draft: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t files < <(find artifacts -type f | sort)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "nenhum artefato baixado" >&2
+            exit 1
+          fi
+          printf 'anexando %s arquivo(s):\n' "${#files[@]}"
+          printf '  %s\n' "${files[@]}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${files[@]}" --clobber
+          else
+            gh release create "$TAG" \
+              --draft \
+              --title "$TAG" \
+              --generate-notes \
+              "${files[@]}"
+          fi

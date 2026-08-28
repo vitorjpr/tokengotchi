@@ -65,8 +65,15 @@ function render() {
 
   el('hatch').hidden = !state.dead;
 
+  // Uma versão nova já instalada tem prioridade sobre o convite a baixar:
+  // mandar "baixe a 0.3.1" para quem acabou de instalar a 0.3.1 é o que
+  // fazia parecer que a atualização não tinha funcionado.
+  const pending = state.pendingVersion;
+  el('pending').hidden = !pending;
+  if (pending) el('pendingVersion').textContent = pending;
+
   const update = state.update;
-  el('update').hidden = !(update && update.available);
+  el('update').hidden = !!pending || !(update && update.available);
   if (update && update.available) el('updateVersion').textContent = update.latest;
 }
 
@@ -148,6 +155,7 @@ window.tokengotchi.onRenameRequest(() => {
 });
 
 el('updateOpen').addEventListener('click', () => window.tokengotchi.openUpdate());
+el('pendingQuit').addEventListener('click', () => window.tokengotchi.quitForUpdate());
 
 el('hide').addEventListener('click', () => window.tokengotchi.hide());
 el('quit').addEventListener('click', () => window.tokengotchi.quit());

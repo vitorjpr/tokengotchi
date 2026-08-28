@@ -138,8 +138,15 @@ nela. Você continua com o mesmo bichinho, na mesma fase.
 | **Ubuntu/Debian** | Dê dois cliques no `.deb` novo, ou `sudo dpkg -i tokengotchi_<versão>_amd64.deb`. |
 | **Outro Linux** | Substitua o `.AppImage` antigo pelo novo. |
 
-Feche o Tokengotchi antes (menu do ícone perto do relógio → *Sair*), instale, e
-abra de novo.
+**Feche o Tokengotchi antes de instalar** (menu do ícone perto do relógio →
+*Sair*), instale, e abra de novo.
+
+Se esquecer e instalar com o app aberto, ele avisa: aparece uma faixa dizendo
+que a versão nova está instalada, com um botão *Sair*. Isso acontece porque o
+app só deixa uma instância rodar por vez — abrir a versão nova enquanto a antiga
+está na bandeja não substitui a que já está no ar. Saia e abra de novo.
+
+Para conferir qual versão está rodando, o número aparece no menu do ícone.
 
 > Para saber qual versão você tem, o número aparece no nome do arquivo que você
 > baixou. A versão mais recente está sempre em

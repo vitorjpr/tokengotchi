@@ -21,17 +21,31 @@ let config = null;
 let ingestServer = null;
 let lastScan = { at: 0, bySource: {} };
 let updateInfo = null;
+let pendingVersion = null;
 
 // Uma instância só. Com "abrir no login" ligado, abrir o app de novo pela mão
 // criaria um segundo processo brigando pela porta 4736 e pelo mesmo cursors.json
 // — dois escritores no mesmo offset corrompem a contagem em silêncio.
-if (!app.requestSingleInstanceLock()) {
+// A segunda instância informa a própria versão ao morrer. Sem isso, instalar
+// uma versão nova e abrir o app dava a impressão de que nada aconteceu: a
+// instância antiga continua na bandeja, segura a trava, e a nova sai calada —
+// o usuário vê a janela velha, com o aviso velho de atualização.
+if (!app.requestSingleInstanceLock({ version: app.getVersion() })) {
   app.quit();
   return;
 }
 
-// A segunda instância morre, mas serve de atalho: revela a janela da primeira.
-app.on('second-instance', () => revealWindow());
+app.on('second-instance', (_event, _argv, _cwd, extra) => {
+  const incoming = extra?.version;
+  if (incoming && updates.isNewer(incoming, app.getVersion())) {
+    // Não dá para assumir o lugar da instância viva sem arriscar duas escritas
+    // no mesmo cursors.json, então a saída é avisar e deixar a decisão com quem
+    // está usando.
+    pendingVersion = incoming;
+    push();
+  }
+  revealWindow();
+});
 
 function userDataDir() {
   return app.getPath('userData');
@@ -141,6 +155,9 @@ function buildTrayMenu() {
 
   return Menu.buildFromTemplate([
     { label: `${snap.name} · ${snap.stageLabel} · ${snap.mood}`, enabled: false },
+    // Versão à vista: sem isso não dá para perceber que a janela na tela é de
+    // uma instância antiga que ficou para trás.
+    { label: `versão ${app.getVersion()}`, enabled: false },
     {
       label: snap.dead
         ? 'Morreu de fome'
@@ -155,7 +172,16 @@ function buildTrayMenu() {
       label: win && win.isVisible() ? 'Esconder bichinho' : 'Mostrar bichinho',
       click: () => toggleWindow()
     },
-    ...(updateInfo?.available
+    ...(pendingVersion
+      ? [
+          {
+            label: `Versão ${pendingVersion} instalada — sair para usá-la`,
+            click: () => app.quit()
+          },
+          { type: 'separator' }
+        ]
+      : []),
+    ...(!pendingVersion && updateInfo?.available
       ? [
           {
             label: `Baixar a versão ${updateInfo.latest}`,
@@ -259,6 +285,8 @@ function rendererState() {
   const snap = petLib.snapshot(pet);
   snap.scan = lastScan;
   snap.update = updateInfo;
+  snap.version = app.getVersion();
+  snap.pendingVersion = pendingVersion;
   return snap;
 }
 
@@ -282,10 +310,11 @@ async function checkUpdates() {
       currentVersion: app.getVersion(),
       userAgent: `Tokengotchi/${app.getVersion()}`
     });
-    // Só guarda quando há novidade: sem rede o resultado é null e o aviso
-    // anterior (se havia) continua valendo em vez de piscar.
-    if (found && found.available) {
-      updateInfo = found;
+    // Resultado nulo é falha de rede: mantém o que já se sabia em vez de
+    // piscar. Resultado válido manda, inclusive para APAGAR um aviso que não
+    // vale mais — sem isso a faixa ficava presa até reiniciar o app.
+    if (found) {
+      updateInfo = found.available ? found : null;
       push();
     }
   } catch (err) {
@@ -404,6 +433,8 @@ ipcMain.on('window:hide', () => {
 });
 
 ipcMain.on('window:quit', () => app.quit());
+
+ipcMain.on('app:quit-for-update', () => app.quit());
 
 ipcMain.on('update:open', () => {
   // Só abre a URL que veio da API do GitHub, nunca uma vinda do renderer.

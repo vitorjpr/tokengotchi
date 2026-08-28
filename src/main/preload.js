@@ -10,5 +10,6 @@ contextBridge.exposeInMainWorld('tokengotchi', {
   onRenameRequest: (handler) => ipcRenderer.on('pet:rename-request', () => handler()),
   hide: () => ipcRenderer.send('window:hide'),
   quit: () => ipcRenderer.send('window:quit'),
-  openUpdate: () => ipcRenderer.send('update:open')
+  openUpdate: () => ipcRenderer.send('update:open'),
+  quitForUpdate: () => ipcRenderer.send('app:quit-for-update')
 });

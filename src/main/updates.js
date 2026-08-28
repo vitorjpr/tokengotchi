@@ -120,10 +120,53 @@ async function checkForUpdate({ currentVersion, timeoutMs, userAgent } = {}) {
   return parseRelease(release, currentVersion);
 }
 
+/**
+ * Versão declarada num Info.plist do macOS. O arquivo gerado pelo
+ * electron-builder é XML de texto, então não precisa de parser de plist.
+ */
+function parseInfoPlistVersion(text) {
+  if (typeof text !== 'string') return null;
+  const match =
+    /<key>\s*CFBundleShortVersionString\s*<\/key>\s*<string>([^<]*)<\/string>/.exec(text);
+  if (!match) return null;
+  const value = match[1].trim();
+  return value.length > 0 ? value : null;
+}
+
+/**
+ * Versão do app INSTALADO EM DISCO, que pode não ser a que está em execução.
+ *
+ * No macOS, arrastar a versão nova para Aplicativos troca os arquivos embaixo
+ * do processo vivo: ele segue com o código antigo em memória, sem saber de
+ * nada. Comparar esta leitura com app.getVersion() revela isso.
+ *
+ * Só macOS: no Windows o executável fica travado enquanto roda (e o instalador
+ * NSIS fecha o app antes de trocar), e no Linux o AppImage em execução está
+ * montado a partir de uma cópia, então substituir o arquivo não altera o que
+ * está rodando. Nesses casos devolve null e o app não tenta adivinhar.
+ */
+function installedVersion({ platform, isPackaged, execPath, readFile } = {}) {
+  if (!isPackaged || platform !== 'darwin') return null;
+  if (typeof execPath !== 'string') return null;
+
+  const marker = '/Contents/MacOS/';
+  const at = execPath.indexOf(marker);
+  if (at === -1) return null;
+
+  try {
+    return parseInfoPlistVersion(readFile(`${execPath.slice(0, at)}/Contents/Info.plist`, 'utf8'));
+  } catch {
+    // App movido, removido ou sendo substituído neste instante: sem palpite.
+    return null;
+  }
+}
+
 module.exports = {
   RELEASES_PAGE,
   RELEASES_API,
   parseVersion,
+  parseInfoPlistVersion,
+  installedVersion,
   compareVersions,
   isNewer,
   parseRelease,

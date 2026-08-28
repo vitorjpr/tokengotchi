@@ -322,6 +322,26 @@ async function checkUpdates() {
   }
 }
 
+/**
+ * Detecta o bundle sendo trocado embaixo do processo em execução — o que
+ * acontece ao arrastar a versão nova para Aplicativos com o app aberto. Aqui
+ * não há segunda instância para avisar: ninguém abriu nada, os arquivos é que
+ * mudaram. Sem isto, o app seguiria rodando código antigo indefinidamente,
+ * anunciando uma atualização que já está instalada.
+ */
+function checkBundleReplaced() {
+  const onDisk = updates.installedVersion({
+    platform: process.platform,
+    isPackaged: app.isPackaged,
+    execPath: app.getPath('exe'),
+    readFile: fs.readFileSync
+  });
+  if (onDisk && onDisk !== app.getVersion() && pendingVersion !== onDisk) {
+    pendingVersion = onDisk;
+    push();
+  }
+}
+
 function scanAndTick(firstRun = false) {
   const now = Date.now();
   let harvest = { calories: 0, tokens: 0, bySource: {} };
@@ -382,6 +402,10 @@ app.whenReady().then(() => {
 
   scanAndTick(firstRun);
   setInterval(() => scanAndTick(false), POLL_MS);
+
+  // Barato (uma leitura de arquivo local), então roda junto da varredura:
+  // quem arrasta o app novo para Aplicativos vê o aviso em segundos.
+  setInterval(checkBundleReplaced, 15_000);
 
   // Atrasada para não competir com a abertura da janela, e repetida para quem
   // deixa o app semanas aberto.

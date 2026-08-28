@@ -333,6 +333,96 @@ assert.ok(
   `versão do package.json (${pkgVersion}) precisa ser X.Y.Z`
 );
 
+// --- versão instalada em disco (bundle trocado sob o processo) ---
+const plistExemplo = [
+  '<?xml version="1.0" encoding="UTF-8"?>',
+  '<plist version="1.0"><dict>',
+  '  <key>CFBundleName</key><string>Tokengotchi</string>',
+  '  <key>CFBundleShortVersionString</key>',
+  '  <string>0.4.1</string>',
+  '</dict></plist>'
+].join('\n');
+
+assert.strictEqual(
+  updates.parseInfoPlistVersion(plistExemplo),
+  '0.4.1',
+  'lê a versão do Info.plist mesmo com quebra de linha entre key e string'
+);
+for (const ruim of ['', '<plist></plist>', null, undefined, 42]) {
+  assert.strictEqual(
+    updates.parseInfoPlistVersion(ruim),
+    null,
+    `plist sem versão (${JSON.stringify(ruim)}) vira null`
+  );
+}
+
+const execMac = '/Applications/Tokengotchi.app/Contents/MacOS/Tokengotchi';
+const lerPlist = () => plistExemplo;
+
+assert.strictEqual(
+  updates.installedVersion({
+    platform: 'darwin',
+    isPackaged: true,
+    execPath: execMac,
+    readFile: lerPlist
+  }),
+  '0.4.1',
+  'lê a versão instalada no macOS empacotado'
+);
+
+// Em desenvolvimento não há bundle para comparar.
+assert.strictEqual(
+  updates.installedVersion({
+    platform: 'darwin',
+    isPackaged: false,
+    execPath: execMac,
+    readFile: lerPlist
+  }),
+  null,
+  'em dev não tenta ler bundle'
+);
+
+// Windows trava o executável em uso e o Linux roda de uma cópia montada:
+// nesses casos a leitura não diria nada útil, então nem é tentada.
+for (const plataforma of ['win32', 'linux']) {
+  assert.strictEqual(
+    updates.installedVersion({
+      platform: plataforma,
+      isPackaged: true,
+      execPath: execMac,
+      readFile: lerPlist
+    }),
+    null,
+    `${plataforma} não tenta detectar troca de bundle`
+  );
+}
+
+// App sendo substituído neste instante: leitura falha e não pode derrubar nada.
+assert.strictEqual(
+  updates.installedVersion({
+    platform: 'darwin',
+    isPackaged: true,
+    execPath: execMac,
+    readFile: () => {
+      throw new Error('ENOENT');
+    }
+  }),
+  null,
+  'falha de leitura vira null em vez de exceção'
+);
+
+// Caminho fora do formato de bundle não deve ser interpretado.
+assert.strictEqual(
+  updates.installedVersion({
+    platform: 'darwin',
+    isPackaged: true,
+    execPath: '/usr/local/bin/tokengotchi',
+    readFile: lerPlist
+  }),
+  null,
+  'caminho sem /Contents/MacOS/ vira null'
+);
+
 // --- fiação do renderer ---
 // O renderer não roda aqui (precisa de Electron), mas os contratos entre os
 // arquivos são texto e dá para conferir: um id com erro de digitação só

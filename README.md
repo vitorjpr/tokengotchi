@@ -146,6 +146,12 @@ que a versão nova está instalada, com um botão *Sair*. Isso acontece porque o
 app só deixa uma instância rodar por vez — abrir a versão nova enquanto a antiga
 está na bandeja não substitui a que já está no ar. Saia e abra de novo.
 
+O aviso aparece nos dois casos: ao **abrir** a versão nova com a antiga rodando,
+e ao **arrastar para Aplicativos** por cima do app aberto. Neste segundo caso
+ninguém abriu nada — os arquivos é que mudaram debaixo do processo, que segue
+rodando o código antigo em memória. O app compara a versão instalada em disco
+com a que está executando e percebe a troca em até 15 segundos.
+
 Para conferir qual versão está rodando, o número aparece no menu do ícone.
 
 > Para saber qual versão você tem, o número aparece no nome do arquivo que você
@@ -428,7 +434,8 @@ src/main/main.js      janela, tray, loop de varredura a cada 8s
 src/main/sources.js   leitura incremental dos logs + parsers por ferramenta
 src/main/pet.js       fome, saúde, evolução, persistência
 src/main/ingest.js    servidor HTTP local (/feed, /status, /show, /hide)
-src/main/updates.js   checagem de versão nova (única saída de rede do app)
+src/main/updates.js   checagem de versão nova (única saída de rede) e detecção
+                      de bundle trocado sob o processo em execução
 src/renderer/         a janelinha: pixel art em canvas + medidores
 config/               fontes padrão, copiadas para o Application Support na 1ª vez
 hooks/feed.sh         atalho para alimentar via hook de qualquer ferramenta

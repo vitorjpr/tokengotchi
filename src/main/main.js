@@ -336,8 +336,15 @@ function checkBundleReplaced() {
     execPath: app.getPath('exe'),
     readFile: fs.readFileSync
   });
-  if (onDisk && onDisk !== app.getVersion() && pendingVersion !== onDisk) {
-    pendingVersion = onDisk;
+  if (!onDisk) return;
+
+  // O aviso segue o disco nos dois sentidos. Antes só era ligado, nunca
+  // desligado: uma vez aceso ficava até reiniciar o app, mesmo que a situação
+  // já tivesse se resolvido — por exemplo se a versão anterior fosse
+  // restaurada por cima.
+  const alvo = onDisk === app.getVersion() ? null : onDisk;
+  if (alvo !== pendingVersion) {
+    pendingVersion = alvo;
     push();
   }
 }
@@ -405,6 +412,7 @@ app.whenReady().then(() => {
 
   // Barato (uma leitura de arquivo local), então roda junto da varredura:
   // quem arrasta o app novo para Aplicativos vê o aviso em segundos.
+  checkBundleReplaced();
   setInterval(checkBundleReplaced, 15_000);
 
   // Atrasada para não competir com a abertura da janela, e repetida para quem
@@ -417,7 +425,10 @@ app.whenReady().then(() => {
     ingestServer = startIngest({
       port: config.ingest?.port || 4736,
       onFeed: feedFromIngest,
-      getStatus: () => petLib.snapshot(pet),
+      // O mesmo estado que a janela recebe, e não só o do bichinho: sem
+      // version/update/pendingVersion aqui, não havia como diagnosticar de
+      // fora por que a faixa de atualização estava aparecendo.
+      getStatus: () => rendererState(),
       onReveal: () => revealWindow(),
       onHide: () => {
         if (win && !win.isDestroyed()) win.hide();

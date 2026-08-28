@@ -358,6 +358,15 @@ curl -s localhost:4736/show      # revela a janela
 curl -s localhost:4736/hide      # esconde de novo
 ```
 
+O `/status` devolve o mesmo estado que a janela recebe, incluindo `version`
+(a versão em execução), `update` (aviso de versão nova) e `pendingVersion`
+(versão instalada em disco diferente da que está rodando). É por onde se
+descobre, em um comando, por que uma faixa de atualização está aparecendo:
+
+```bash
+curl -s localhost:4736/status | python3 -m json.tool | grep -E "version|update|pending"
+```
+
 Se a porta 4736 já estiver ocupada, o app avisa no console e segue comendo dos logs
 normalmente — só o servidor fica fora. Dá para mudar em `ingest.port` no `sources.json`.
 

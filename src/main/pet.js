@@ -3,13 +3,30 @@
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * O calibre da fome é dominado por um caso concreto: o computador do trabalho
+ * fica no trabalho no fim de semana. O último token cai sexta por volta das 18h
+ * e o próximo só chega segunda de manhã — 63 horas depois. O bichinho precisa
+ * atravessar isso vivo, mas chegar visivelmente mal, senão o fim de semana não
+ * custa nada.
+ *
+ * Quem segura essas 63 horas é a saúde, não a barriga. A barriga na sexta à
+ * noite depende de quanto a pessoa mexeu com IA naquele dia; a saúde, não —
+ * acima de 50 de saciedade ela regenera, então quem trabalhou na sexta desliga
+ * com 100. Por isso a saúde sozinha (100 ÷ 1,5 = ~67h) já cobre o fim de semana
+ * inteiro mesmo saindo de barriga vazia, e a barriga só soma a margem por cima.
+ *
+ *   vida máxima  = 100/6 + 100/1,5 = ~83h (3 dias e 11h)
+ *   sexta 18h de barriga cheia → segunda 9h com ~30 de saúde, humor "fraco"
+ *   uma noite normal (15h fora) esvazia a barriga sem arranhar a saúde
+ */
 const TUNING = {
   // Calorias necessárias para recuperar 1 ponto de saciedade (0–100).
   caloriesPerSatiety: 4000,
-  // Saciedade perdida por hora parado.
-  satietyDecayPerHour: 5,
-  // Saúde perdida por hora com a barriga vazia.
-  healthDecayPerHour: 8,
+  // Saciedade perdida por hora parado: ~17h para esvaziar de cheia.
+  satietyDecayPerHour: 6,
+  // Saúde perdida por hora com a barriga vazia: ~67h até morrer.
+  healthDecayPerHour: 1.5,
   // Saúde recuperada por hora quando bem alimentado.
   healthRegenPerHour: 6,
   regenThreshold: 50,

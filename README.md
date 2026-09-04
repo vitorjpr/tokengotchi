@@ -8,8 +8,9 @@ Um bichinho de estimação que mora num cantinho da sua tela e **se alimenta dos
 tokens que você gasta com inteligência artificial**.
 
 Trabalhou bastante hoje com IA? Ele come bem, fica feliz e cresce. Passou o fim de
-semana longe do computador? Ele dorme, sente fome e, se você sumir de vez, morre —
-aí é só chocar um ovo novo e começar de novo.
+semana longe do computador? Ele dorme, sente fome e te espera fraco na segunda —
+mas vivo. Se você sumir de vez, aí morre, e é só chocar um ovo novo e começar de
+novo.
 
 Ele conta sozinho: não precisa apontar nada, nem digitar quanto você usou. O app lê
 o que as ferramentas de IA já anotam no seu próprio computador. **Nada é enviado
@@ -277,14 +278,20 @@ Cada token vale um número de calorias diferente, na mesma proporção do custo 
 | leitura de cache | 0,1× |
 
 - 4.000 calorias = 1 ponto de saciedade (de 0 a 100)
-- Sem comer, perde 5 pontos de saciedade por hora → ~20h para esvaziar
-- Barriga vazia, perde 8 pontos de saúde por hora → mais ~12h até morrer
+- Sem comer, perde 6 pontos de saciedade por hora → ~17h para esvaziar
+- Barriga vazia, perde 1,5 ponto de saúde por hora → mais ~67h até morrer
 - Acima de 50 de saciedade, recupera 6 pontos de saúde por hora
 - 20 minutos sem token nenhum e ele dorme
 
-Na prática: uma sessão decente de Claude Code enche a barriga. Um fim de semana
-inteiro sem abrir o terminal mata o bicho. Quando morre, o botão laranja choca um
-novo ovo e a geração sobe.
+Somando os dois, a vida máxima é de **~83 horas** — 3 dias e 11 horas.
+
+Na prática: uma sessão decente de Claude Code enche a barriga. Uma noite fora
+esvazia a barriga sem cobrar saúde, e ele te recebe faminto de manhã. **O fim de
+semana ele atravessa vivo**, mesmo que o computador fique no trabalho: quem
+desliga na sexta às 18h reencontra o bichinho na segunda de manhã fraco e
+pálido, por volta de 30 de saúde, e uma sessão de trabalho o recupera. Quem
+sumir de verdade — uma viagem, uma semana de férias — perde o bicho. Quando
+morre, o botão laranja choca um novo ovo e a geração sobe.
 
 O tempo passa mesmo com o app fechado — ele calcula o decaimento pelo relógio ao abrir,
 com teto de 7 dias.

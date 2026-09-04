@@ -494,13 +494,42 @@ let pet = petLib.freshPet(now);
 petLib.tick(pet, { calories: 400_000, now });
 assert.strictEqual(Math.round(pet.satiety), 100, 'comida farta enche a barriga');
 
-petLib.tick(pet, { now: now + 20 * HOUR });
-assert.ok(pet.satiety <= 0.01, 'saciedade zera em ~20h sem tokens');
+petLib.tick(pet, { now: now + 17 * HOUR });
+assert.ok(pet.satiety <= 0.01, 'saciedade zera em ~17h sem tokens');
 assert.ok(!pet.dead, 'ainda vivo ao ficar sem comida');
 
-petLib.tick(pet, { now: now + 33 * HOUR });
-assert.ok(pet.dead, 'morre depois de ~32h de abandono');
-assert.strictEqual(petLib.moodFor(pet, now + 33 * HOUR), 'morto');
+petLib.tick(pet, { now: now + 84 * HOUR });
+assert.ok(pet.dead, 'morre depois de ~83h de abandono');
+assert.strictEqual(petLib.moodFor(pet, now + 84 * HOUR), 'morto');
+
+// O fim de semana no computador do trabalho: último token na sexta às 18h,
+// próximo só na segunda às 9h. São 63h, e o bichinho tem que chegar vivo —
+// fraco, para o fim de semana custar alguma coisa, mas vivo.
+const WEEKEND = 63 * HOUR;
+for (const satietyNaSexta of [100, 60, 0]) {
+  const petFds = petLib.freshPet(now);
+  petFds.satiety = satietyNaSexta;
+  petFds.health = 100;
+  petLib.tick(petFds, { now: now + WEEKEND });
+  assert.ok(
+    !petFds.dead,
+    `sobrevive ao fim de semana saindo com ${satietyNaSexta} de saciedade`
+  );
+  assert.ok(
+    petFds.health < 35,
+    `chega na segunda visivelmente fraco saindo com ${satietyNaSexta} de saciedade`
+  );
+}
+const petCheio = petLib.freshPet(now);
+petCheio.satiety = 100;
+petLib.tick(petCheio, { now: now + WEEKEND });
+assert.strictEqual(petLib.moodFor(petCheio, now + WEEKEND), 'fraco');
+
+// Uma noite normal fora esvazia a barriga sem cobrar saúde.
+const petNoite = petLib.freshPet(now);
+petNoite.satiety = 100;
+petLib.tick(petNoite, { now: now + 15 * HOUR });
+assert.strictEqual(petNoite.health, 100, 'dormir em casa não tira saúde');
 
 // Comer antes de morrer recupera a saúde.
 let pet2 = petLib.freshPet(now);

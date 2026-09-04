@@ -72,9 +72,16 @@ function render() {
   el('pending').hidden = !pending;
   if (pending) el('pendingVersion').textContent = pending;
 
+  // A faixa diz de onde e para onde. Sem a versão em execução ao lado da
+  // oferecida, "versão 0.4.0 disponível" é uma afirmação que o usuário não
+  // tem como conferir: quem acabou de instalar não sabe dizer se o aviso
+  // está errado ou se é a janela antiga que ficou na bandeja.
   const update = state.update;
   el('update').hidden = !!pending || !(update && update.available);
-  if (update && update.available) el('updateVersion').textContent = update.latest;
+  if (update && update.available) {
+    el('updateVersion').textContent = update.latest;
+    el('runningVersion').textContent = state.version || '?';
+  }
 }
 
 function showGain(tokens) {

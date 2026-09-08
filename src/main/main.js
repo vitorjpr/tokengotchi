@@ -10,7 +10,7 @@ const { startIngest } = require('./ingest');
 const updates = require('./updates');
 
 const POLL_MS = 8000;
-const WINDOW = { width: 250, height: 330 };
+const WINDOW = { width: 250, height: 460 };
 
 let win = null;
 let tray = null;

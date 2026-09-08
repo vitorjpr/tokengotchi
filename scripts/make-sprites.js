@@ -181,13 +181,9 @@ function encodePng(size, rgba) {
 const SCREEN = '#241f1c';
 
 const SHOTS = [
-  // evolução, todos saudáveis e felizes
-  { file: 'estagio-ovo', stage: 'ovo', mood: 'feliz', health: 100 },
-  { file: 'estagio-broto', stage: 'broto', mood: 'feliz', health: 100 },
-  { file: 'estagio-filhote', stage: 'filhote', mood: 'feliz', health: 100 },
-  { file: 'estagio-jovem', stage: 'jovem', mood: 'feliz', health: 100 },
-  { file: 'estagio-adulto', stage: 'adulto', mood: 'feliz', health: 100 },
-  { file: 'estagio-anciao', stage: 'anciao', mood: 'feliz', health: 100 },
+  ...require('../src/main/pet').STAGES.map(({ id }) => ({
+    file: `estagio-${id}`, stage: id, mood: 'feliz', health: 100, frame: 52
+  })),
 
   // reações, todas no mesmo estágio para a diferença ser o humor
   { file: 'humor-feliz', stage: 'adulto', mood: 'feliz', health: 100 },
@@ -210,7 +206,7 @@ function render(shot) {
       dead: shot.dead === true,
       eating: shot.eating === true
     },
-    shot.frame ?? 0
+    shot.frame ?? 52
   );
   return canvas._rgba;
 }
@@ -276,15 +272,19 @@ for (const shot of SHOTS) {
   console.log(`  ${shot.file}.png`);
 }
 
-// Tira da evolução inteira, para o topo do README.
+// Panorama das nove formas: as subfases aparecem nas galerias do README.
 const evolucao = strip(
-  SHOTS.filter((s) => s.file.startsWith('estagio-')).map(render),
+  SHOTS.filter((s) => s.file.startsWith('estagio-') && !s.stage.includes('-')).map(render),
   SCALE * 2
 );
 fs.writeFileSync(
   path.join(outDir, 'evolucao.png'),
   encodePngWH(evolucao.width, evolucao.height, evolucao.rgba)
 );
+for (const group of ['guerreiro', 'mago', 'dragao']) {
+  const preview = strip(SHOTS.filter(s => s.stage.startsWith(group)).map(render), SCALE * 2);
+  fs.writeFileSync(path.join(outDir, `${group}.png`), encodePngWH(preview.width, preview.height, preview.rgba));
+}
 console.log('  evolucao.png');
 
-console.log(`\n${SHOTS.length + 1} imagens em ${path.relative(process.cwd(), outDir)}/`);
+console.log(`\n${SHOTS.length + 4} imagens em ${path.relative(process.cwd(), outDir)}/`);

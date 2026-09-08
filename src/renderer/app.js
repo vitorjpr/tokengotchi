@@ -49,6 +49,12 @@ function render() {
   el('gen').textContent = `·${state.generation}`;
   el('moodLabel').textContent = state.dead ? 'morreu de fome' : state.mood;
   el('stageLabel').textContent = state.stageLabel || state.stage;
+  el('levelLabel').textContent = `Nível ${state.level || 1} / ${state.totalLevels || 19}`;
+  el('phaseLabel').textContent = state.stagePhase || 'Primeiros passos';
+  el('evolutionProgress').value = state.stageProgress || 0;
+  el('nextLevel').textContent = state.nextStageLabel
+    ? `Próximo: ${state.nextStageLabel} · faltam ${formatTokens(state.caloriesToNext)} cal`
+    : 'Evolução completa';
   el('dot').style.background = MOOD_COLOR[state.mood] || '#c49a78';
 
   el('satietyValue').textContent = `${state.satiety}%`;

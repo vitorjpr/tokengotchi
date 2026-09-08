@@ -545,5 +545,45 @@ let pet3 = petLib.freshPet(now);
 petLib.tick(pet3, { calories: 3_000_000, now });
 assert.strictEqual(petLib.snapshot(pet3, now).stage, 'filhote', 'evolui com o consumo acumulado');
 
+// Cada subfase é um nível real, com limites inclusivos e custo crescente.
+assert.strictEqual(petLib.STAGES.length, 19);
+let previousCost = 0;
+for (let i = 0; i < petLib.STAGES.length; i++) {
+  const stage = petLib.STAGES[i];
+  assert.strictEqual(petLib.stageFor(stage.minCalories).id, stage.id);
+  const sample = petLib.freshPet(now);
+  sample.lifetimeCalories = stage.minCalories;
+  const snap = petLib.snapshot(sample, now);
+  assert.strictEqual(snap.level, i + 1);
+  assert.strictEqual(snap.stagePhase, stage.phase);
+  assert.strictEqual(snap.stageProgress, i === petLib.STAGES.length - 1 ? 1 : 0);
+  if (i > 0) {
+    assert.strictEqual(petLib.stageFor(stage.minCalories - 1).id, petLib.STAGES[i - 1].id);
+    const cost = stage.minCalories - petLib.STAGES[i - 1].minCalories;
+    assert.ok(cost > previousCost, 'cada avanço custa mais que o anterior');
+    previousCost = cost;
+  }
+  const next = petLib.STAGES[i + 1];
+  if (next) {
+    sample.lifetimeCalories = (stage.minCalories + next.minCalories) / 2;
+    const halfway = petLib.snapshot(sample, now);
+    assert.strictEqual(halfway.stageProgress, 0.5);
+    assert.strictEqual(halfway.caloriesToNext, (next.minCalories - stage.minCalories) / 2);
+    assert.ok(halfway.nextStageLabel.includes(next.phase));
+  } else {
+    assert.strictEqual(snap.nextStageLabel, null);
+    assert.strictEqual(snap.caloriesToNext, 0);
+  }
+}
+const savedEvolution = petLib.freshPet(now, 3);
+savedEvolution.lifetimeCalories = 150_000_000;
+const evolutionStore = new petLib.Store(path.join(tmp, 'evolution'));
+evolutionStore.savePet(savedEvolution);
+const reloadedEvolution = evolutionStore.loadPet(now).pet;
+assert.strictEqual(reloadedEvolution.lifetimeCalories, 150_000_000);
+assert.strictEqual(reloadedEvolution.generation, 3);
+assert.strictEqual(petLib.snapshot(reloadedEvolution, now).stage, 'guerreiro');
+assert.strictEqual(petLib.snapshot(petLib.freshPet(now, 4), now).level, 1);
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log('ok — parsers, leitura incremental e ciclo de vida conferidos');

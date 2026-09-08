@@ -1,7 +1,7 @@
 # Tokengotchi
 
 <p align="center">
-  <img src="docs/sprites/evolucao.png" alt="As seis fases do Tokengotchi: ovo, broto, filhote, jovem, adulto e ancião" width="640">
+  <img src="docs/sprites/evolucao.png" alt="Evolução do Tokengotchi, do ovo ao dragão ancestral" width="640">
 </p>
 
 Um bichinho de estimação que mora num cantinho da sua tela e **se alimenta dos
@@ -32,12 +32,69 @@ O bichinho muda de cara conforme você usa (ou deixa de usar) a IA:
 | <img src="docs/sprites/humor-faminto.png" width="90"> | <img src="docs/sprites/humor-fraco.png" width="90"> | <img src="docs/sprites/humor-morto.png" width="90"> | |
 | **Faminto**<br>barriga quase vazia | **Fraco**<br>saúde caindo | **Morto**<br>abandonado demais | |
 
-E cresce em seis fases, conforme o total que já comeu na vida:
+---
 
-| | | | | | |
-| :---: | :---: | :---: | :---: | :---: | :---: |
-| <img src="docs/sprites/estagio-ovo.png" width="80"> | <img src="docs/sprites/estagio-broto.png" width="80"> | <img src="docs/sprites/estagio-filhote.png" width="80"> | <img src="docs/sprites/estagio-jovem.png" width="80"> | <img src="docs/sprites/estagio-adulto.png" width="80"> | <img src="docs/sprites/estagio-anciao.png" width="80"> |
-| ovo | broto | filhote | jovem | adulto | ancião |
+## Como ele cresce
+
+Do ovo ao dragão ancestral, são **19 níveis em nove formas**. Ele evolui conforme
+o total de calorias que já comeu na vida — e cada nível dá um pouco mais de trabalho
+que o anterior. A fome muda o humor e a cor do bichinho, mas não apaga a evolução.
+
+### Primeiro, crescer
+
+Ovo → broto → filhote → jovem → adulto. A aventura começa pequena:
+
+|  |  |  |  |  |
+| :---: | :---: | :---: | :---: | :---: |
+| <img src="docs/sprites/estagio-ovo.png" alt="ovo: Primeiros passos" width="90"> | <img src="docs/sprites/estagio-broto.png" alt="broto: Uma nova vida" width="90"> | <img src="docs/sprites/estagio-filhote.png" alt="filhote: Descobrindo o mundo" width="90"> | <img src="docs/sprites/estagio-jovem.png" alt="jovem: Pronto para explorar" width="90"> | <img src="docs/sprites/estagio-adulto.png" alt="adulto: O começo da aventura" width="90"> |
+| **ovo**<br>nível 1 | **broto**<br>nível 2 | **filhote**<br>nível 3 | **jovem**<br>nível 4 | **adulto**<br>nível 5 |
+
+### Guerreiro: um equipamento de cada vez
+
+Depois de adulto, ele vira guerreiro. Começa de mãos vazias e vai ganhando os
+itens abaixo, nessa ordem. Não precisa comprar nem equipar nada: a aparência muda
+sozinha quando ele chega ao próximo nível.
+
+|  |  |  |  |  |
+| :---: | :---: | :---: | :---: | :---: |
+| <img src="docs/sprites/estagio-guerreiro.png" alt="guerreiro: Sem armas" width="90"> | <img src="docs/sprites/estagio-guerreiro-faca.png" alt="guerreiro: Faca" width="90"> | <img src="docs/sprites/estagio-guerreiro-espada.png" alt="guerreiro: Espada" width="90"> | <img src="docs/sprites/estagio-guerreiro-escudo.png" alt="guerreiro: Espada e escudo" width="90"> | <img src="docs/sprites/estagio-guerreiro-machado.png" alt="guerreiro: Machado" width="90"> |
+| **Sem armas**<br>nível 6 | **Faca**<br>nível 7 | **Espada**<br>nível 8 | **Espada e escudo**<br>nível 9 | **Machado**<br>nível 10 |
+
+### Ancião: uma pausa para a sabedoria
+
+Depois do machado, vem a barba do ancião. Ele chega ao **nível 11** antes de
+começar a aprender magia.
+
+<p align="center">
+  <img src="docs/sprites/estagio-anciao.png" alt="Ancião com barba, nível 11: sabedoria ancestral" width="90"><br>
+  <strong>Sabedoria ancestral</strong>
+</p>
+
+### Mago: cajados e livros
+
+O primeiro cajado é de madeira. Depois vêm o cristal, o grimório e, por fim,
+um cajado astral com tomo arcano. Cada combinação é uma nova subfase:
+
+|  |  |  |  |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/sprites/estagio-mago.png" alt="mago: Cajado de madeira" width="90"> | <img src="docs/sprites/estagio-mago-cristal.png" alt="mago: Cajado de cristal" width="90"> | <img src="docs/sprites/estagio-mago-livro.png" alt="mago: Cajado e grimório" width="90"> | <img src="docs/sprites/estagio-mago-arcano.png" alt="mago: Cajado astral e tomo arcano" width="90"> |
+| **Cajado de madeira**<br>nível 12 | **Cajado de cristal**<br>nível 13 | **Cajado e grimório**<br>nível 14 | **Cajado astral e tomo arcano**<br>nível 15 |
+
+### Dragão: das escamas à chama ancestral
+
+Depois do mago, ele vira dragão. Ganha asas, aprende a soltar fogo e termina
+com coroa e chama ancestral — o **nível 19**, último desta jornada.
+
+|  |  |  |  |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/sprites/estagio-dragao.png" alt="dragão: Escamas e pequenos chifres" width="90"> | <img src="docs/sprites/estagio-dragao-asas.png" alt="dragão: Asas despertas" width="90"> | <img src="docs/sprites/estagio-dragao-fogo.png" alt="dragão: Sopro de fogo" width="90"> | <img src="docs/sprites/estagio-dragao-ancestral.png" alt="dragão: Coroa e chama ancestral" width="90"> |
+| **Escamas e pequenos chifres**<br>nível 16 | **Asas despertas**<br>nível 17 | **Sopro de fogo**<br>nível 18 | **Coroa e chama ancestral**<br>nível 19 |
+
+Na janelinha, você acompanha o **nível**, a **subfase**, a barra de progresso e
+quantas calorias faltam para a próxima evolução. Ao chegar ao fim, aparece
+*Evolução completa*. Ele ainda precisa comer para continuar vivo.
+
+Quer conferir os números? A [tabela de evolução](#evolução) mostra o caminho todo.
 
 ---
 
@@ -130,7 +187,12 @@ por cima — do mesmo jeito que você instalou da primeira vez.
 
 **Seu bichinho não se perde.** O nome, a idade, a saciedade e a geração ficam
 guardados numa pasta separada do aplicativo, e instalar por cima não encosta
-nela. Você continua com o mesmo bichinho, na mesma fase.
+nela. Você continua com o mesmo bichinho e com as calorias que ele já acumulou.
+
+> **Vindo da evolução antiga, com seis fases?** A forma passa a seguir a nova
+> tabela de 19 níveis. Um antigo ancião pode aparecer como guerreiro, porque
+> agora há cinco níveis de guerreiro antes dele. Nenhuma caloria nem geração
+> é apagada; o que muda é o limite para alcançar cada forma.
 
 | Sistema | O que fazer |
 | --- | --- |
@@ -315,11 +377,43 @@ Chocar um ovo novo devolve o nome padrão, porque é outro bichinho.
 
 ### Evolução
 
-`ovo → broto → filhote → jovem → adulto → ancião`, por calorias acumuladas na vida
-(250k / 2M / 10M / 40M / 150M). A aparência muda em cada estágio, e o bichinho fica
-mais pálido conforme a saúde cai.
+`ovo → broto → filhote → jovem → adulto → guerreiro → ancião → mago → dragão`.
 
-Ajuste os números em `src/main/pet.js`, no objeto `TUNING`.
+Cada subfase conta como um nível. A evolução usa as **calorias acumuladas na
+vida**, não a saciedade atual nem a contagem de tokens do dia. Os equipamentos
+são automáticos e visuais: não alteram os pesos dos tokens, a fome ou a saúde.
+
+A partir da entrada no guerreiro, cada salto custa aproximadamente **50% mais**
+que o anterior, com arredondamento para milhões. Por exemplo: adulto → guerreiro
+custa 45 milhões; a faca exige mais 68 milhões; a espada, mais 102 milhões.
+A coluna da direita mostra esse esforço adicional, não um novo total.
+
+| Nível | Forma | Subfase | Calorias acumuladas | Calorias desde o nível anterior |
+| --- | --- | --- | ---: | ---: |
+| 1 | ovo | Primeiros passos | 0 | — |
+| 2 | broto | Uma nova vida | 250.000 | 250.000 |
+| 3 | filhote | Descobrindo o mundo | 2.000.000 | 1.750.000 |
+| 4 | jovem | Pronto para explorar | 10.000.000 | 8.000.000 |
+| 5 | adulto | O começo da aventura | 40.000.000 | 30.000.000 |
+| 6 | guerreiro | Sem armas | 85.000.000 | 45.000.000 |
+| 7 | guerreiro | Faca | 153.000.000 | 68.000.000 |
+| 8 | guerreiro | Espada | 255.000.000 | 102.000.000 |
+| 9 | guerreiro | Espada e escudo | 408.000.000 | 153.000.000 |
+| 10 | guerreiro | Machado | 638.000.000 | 230.000.000 |
+| 11 | ancião | Sabedoria ancestral | 983.000.000 | 345.000.000 |
+| 12 | mago | Cajado de madeira | 1.501.000.000 | 518.000.000 |
+| 13 | mago | Cajado de cristal | 2.278.000.000 | 777.000.000 |
+| 14 | mago | Cajado e grimório | 3.444.000.000 | 1.166.000.000 |
+| 15 | mago | Cajado astral e tomo arcano | 5.193.000.000 | 1.749.000.000 |
+| 16 | dragão | Escamas e pequenos chifres | 7.817.000.000 | 2.624.000.000 |
+| 17 | dragão | Asas despertas | 11.753.000.000 | 3.936.000.000 |
+| 18 | dragão | Sopro de fogo | 17.657.000.000 | 5.904.000.000 |
+| 19 | dragão | Coroa e chama ancestral | 26.513.000.000 | 8.856.000.000 |
+
+Os limites ficam em `STAGES`, em `src/main/pet.js`. Saves existentes preservam
+as calorias e a geração; a forma é recalculada na nova tabela (um antigo ancião
+pode voltar a guerreiro). Chocar um ovo reinicia a evolução. A palidez continua
+acompanhando a saúde em todas as formas.
 
 ## Como ele lê cada ferramenta
 
@@ -364,6 +458,12 @@ curl -s localhost:4736/status
 curl -s localhost:4736/show      # revela a janela
 curl -s localhost:4736/hide      # esconde de novo
 ```
+
+O `/status` também mostra a evolução: `level` e `totalLevels` indicam o nível
+atual e o total; `stage`, `stageLabel` e `stagePhase` identificam a forma e a
+subfase; `stageProgress` vai de 0 a 1; `nextStageLabel` e `caloriesToNext`
+mostram o próximo destino e quanto falta. No último nível, o progresso é 1,
+o próximo destino é `null` e faltam zero calorias.
 
 O `/status` devolve o mesmo estado que a janela recebe, incluindo `version`
 (a versão em execução), `update` (aviso de versão nova) e `pendingVersion`
@@ -467,7 +567,10 @@ mise.toml             Node 22 + tasks do projeto
 As imagens do README não são desenhos separados: `scripts/make-sprites.js` carrega
 o `src/renderer/sprite.js` de verdade e chama o mesmo `draw()` que o app usa, contra
 um canvas 2D falso que grava os `fillRect` num buffer. Se o sprite mudar no app, as
-imagens mudam junto com `mise run sprites` — elas não têm como divergir do produto.
+imagens são regeneradas com `mise run sprites`. O script percorre `STAGES`
+para gerar uma imagem por nível, uma faixa de cada família nova (`guerreiro.png`,
+`mago.png` e `dragao.png`) e o panorama das nove formas (`evolucao.png`).
+Sempre regenere e inclua os PNGs no commit quando a arte mudar.
 
 Nenhuma dependência além do Electron.
 
@@ -509,6 +612,12 @@ O selftest não precisa do Electron nem de `npm install` — só de Node.
 Ao mexer nos parsers, adicione um caso em `scripts/selftest.js` com o formato **real**
 do log (um trecho colado do arquivo de verdade), não com um formato imaginado. Foi
 assim que apareceu o bug de contagem dupla do Codex.
+
+Ao mexer na evolução, ajuste `STAGES` em `src/main/pet.js`, o desenho em
+`src/renderer/sprite.js` e as galerias e os limites deste README. Rode
+`mise run test` para conferir os limites, o custo crescente e a preservação
+dos saves; depois `mise run sprites` e confira as imagens geradas. Cada salto
+deve exigir mais calorias que o anterior.
 
 ### Lançando uma versão
 

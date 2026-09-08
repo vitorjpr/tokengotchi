@@ -132,6 +132,105 @@ const GRIDS = {
   ]
 };
 
+// Novas formas continuam em pixel art, usando a mesma grade e animação.
+GRIDS.dragao = [
+  '....B......B....',
+  '....BB....BB....',
+  '....BBBBBBBB....',
+  '...BBBBBBBBBB...',
+  '...BBBBBBBBBB...',
+  '...BBBBBBBBBB...',
+  '...BBBBBBBBBB...',
+  '....BBMMMMBB....',
+  '....BBBBBBBB....',
+  '....BBLLLLBB....',
+  '....BBLLLLBB....',
+  '...BBBLLLLBBB...',
+  '..BBBBBBBBBBBB..',
+  '.BBB.BB..BB.....',
+  '.....DD..DD.....',
+  '................'
+];
+
+function formFor(stage) {
+  if (stage.startsWith('guerreiro')) return 'guerreiro';
+  if (stage.startsWith('mago')) return 'mago';
+  if (stage.startsWith('dragao')) return 'dragao';
+  return stage;
+}
+
+// Equipamentos sobrepostos ao corpo; coordenadas na grade original 16x16.
+function drawEquipment(ctx, px, bob, stage) {
+  const form = formFor(stage);
+  const rect = (x, y, w, h, color) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(Math.round(x * px), Math.round((y + bob) * px), Math.ceil(w * px), Math.ceil(h * px));
+  };
+  const steel = '#b8cad2', gold = '#e7b962', wood = '#966447';
+  if (form === 'guerreiro') {
+    rect(4, 10, 8, 1, wood);
+    rect(7, 10, 2, 1, gold);
+    rect(3, 3, 2, 1, steel);
+    rect(11, 3, 2, 1, steel);
+    if (stage === 'guerreiro') return;
+    rect(14, 8, 1, 4, wood);
+    if (stage === 'guerreiro-machado') {
+      rect(14, 3, 1, 6, wood);
+      rect(12, 4, 4, 3, steel);
+      rect(12, 4, 1, 2, '#eef4ee');
+    } else {
+      const top = stage === 'guerreiro-faca' ? 6 : 2;
+      rect(14, top, 1, 8 - top, steel);
+      rect(13, 8, 3, 1, gold);
+    }
+    if (stage === 'guerreiro-escudo') {
+      rect(0, 7, 4, 5, steel);
+      rect(1, 8, 2, 5, '#50758e');
+      rect(1, 9, 2, 1, gold);
+    }
+  }
+  if (form === 'mago') {
+    rect(6, 0, 3, 1, '#997aca');
+    rect(5, 1, 5, 1, '#8061b1');
+    rect(4, 2, 7, 1, '#8061b1');
+    rect(2, 3, 11, 1, '#60458c');
+    rect(4, 10, 8, 2, '#60458c');
+    rect(7, 10, 1, 2, gold);
+    rect(14, 4, 1, 10, wood);
+    rect(13, 3, 3, 2, wood);
+    if (stage !== 'mago') {
+      rect(13, 2, 3, 2, stage === 'mago-arcano' ? gold : '#8ee5e1');
+      rect(14, 1, 1, 4, '#eef4ee');
+    }
+    if (stage === 'mago-livro' || stage === 'mago-arcano') {
+      rect(0, 8, 5, 4, stage === 'mago-arcano' ? gold : '#976cbb');
+      rect(0, 9, 2, 2, '#f3e7da');
+      rect(3, 9, 2, 2, '#f3e7da');
+    }
+  }
+  if (form === 'dragao') {
+    if (stage !== 'dragao') {
+      const wing = stage === 'dragao-ancestral' ? '#bc9159' : '#629776';
+      for (let i = 0; i < 3; i++) {
+        rect(i, 4 + i, 1, 7 - i * 2, wing);
+        rect(15 - i, 4 + i, 1, 7 - i * 2, wing);
+      }
+    }
+    if (stage === 'dragao-fogo' || stage === 'dragao-ancestral') {
+      rect(8, 8, 2, 2, '#ffd97e');
+      rect(9, 9, 2, 2, '#eea34e');
+      rect(10, 10, 3, 2, '#e27346');
+      rect(12, 9, 1, 2, '#ffd97e');
+    }
+    if (stage === 'dragao-ancestral') {
+      rect(5, 1, 6, 1, gold);
+      rect(5, 0, 1, 1, gold);
+      rect(8, 0, 1, 1, gold);
+      rect(10, 0, 1, 1, gold);
+    }
+  }
+}
+
 // Onde ficam os olhos em cada estágio (canto superior esquerdo de um bloco 2x2).
 const EYES = {
   ovo: null,
@@ -161,7 +260,8 @@ function mix(hexA, hexB, amount) {
 }
 
 function paletteFor(state) {
-  const healthy = '#C49A78';
+  const form = formFor(state.stage);
+  const healthy = form === 'dragao' ? '#79ac85' : form === 'mago' ? '#baa0cf' : '#C49A78';
   const pale = '#7A7068';
   const amount = state.dead ? 1 : Math.min(1, Math.max(0, (100 - state.health) / 100));
   const body = mix(healthy, pale, amount * 0.85);
@@ -194,7 +294,9 @@ function draw(canvas, state, frame) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const stage = state.dead ? 'morto' : state.stage;
-  const grid = GRIDS[stage] || GRIDS.filhote;
+  const form = formFor(stage);
+  const base = form === 'guerreiro' || form === 'mago' ? 'filhote' : form;
+  const grid = GRIDS[base] || GRIDS.filhote;
   const colors = paletteFor(state);
 
   // Respiração / pulinho
@@ -227,7 +329,8 @@ function draw(canvas, state, frame) {
     }
   }
 
-  const eyes = EYES[stage];
+  if (!state.dead) drawEquipment(ctx, px, bob, stage);
+  const eyes = form === 'dragao' ? { left: [4, 5], right: [10, 5] } : EYES[base];
   if (eyes) drawEyes(ctx, px, bob, eyes, state, colors, frame);
   if (state.mood === 'dormindo' && !state.dead) drawZzz(ctx, px, frame, colors);
   if (state.eating) drawCrumbs(ctx, px, frame, colors);

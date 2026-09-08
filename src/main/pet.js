@@ -36,13 +36,27 @@ const TUNING = {
   maxOfflineHours: 168
 };
 
+// Cada salto exige mais calorias que o anterior; o progresso usa o total vitalício.
 const STAGES = [
-  { id: 'ovo', label: 'ovo', minCalories: 0 },
-  { id: 'broto', label: 'broto', minCalories: 250_000 },
-  { id: 'filhote', label: 'filhote', minCalories: 2_000_000 },
-  { id: 'jovem', label: 'jovem', minCalories: 10_000_000 },
-  { id: 'adulto', label: 'adulto', minCalories: 40_000_000 },
-  { id: 'anciao', label: 'ancião', minCalories: 150_000_000 }
+  { id: 'ovo', label: 'ovo', phase: 'Primeiros passos', minCalories: 0 },
+  { id: 'broto', label: 'broto', phase: 'Uma nova vida', minCalories: 250000 },
+  { id: 'filhote', label: 'filhote', phase: 'Descobrindo o mundo', minCalories: 2000000 },
+  { id: 'jovem', label: 'jovem', phase: 'Pronto para explorar', minCalories: 10000000 },
+  { id: 'adulto', label: 'adulto', phase: 'O começo da aventura', minCalories: 40000000 },
+  { id: 'guerreiro', label: 'guerreiro', phase: 'Sem armas', minCalories: 85000000 },
+  { id: 'guerreiro-faca', label: 'guerreiro', phase: 'Faca', minCalories: 153000000 },
+  { id: 'guerreiro-espada', label: 'guerreiro', phase: 'Espada', minCalories: 255000000 },
+  { id: 'guerreiro-escudo', label: 'guerreiro', phase: 'Espada e escudo', minCalories: 408000000 },
+  { id: 'guerreiro-machado', label: 'guerreiro', phase: 'Machado', minCalories: 638000000 },
+  { id: 'anciao', label: 'ancião', phase: 'Sabedoria ancestral', minCalories: 983000000 },
+  { id: 'mago', label: 'mago', phase: 'Cajado de madeira', minCalories: 1501000000 },
+  { id: 'mago-cristal', label: 'mago', phase: 'Cajado de cristal', minCalories: 2278000000 },
+  { id: 'mago-livro', label: 'mago', phase: 'Cajado e grimório', minCalories: 3444000000 },
+  { id: 'mago-arcano', label: 'mago', phase: 'Cajado astral e tomo arcano', minCalories: 5193000000 },
+  { id: 'dragao', label: 'dragão', phase: 'Escamas e pequenos chifres', minCalories: 7817000000 },
+  { id: 'dragao-asas', label: 'dragão', phase: 'Asas despertas', minCalories: 11753000000 },
+  { id: 'dragao-fogo', label: 'dragão', phase: 'Sopro de fogo', minCalories: 17657000000 },
+  { id: 'dragao-ancestral', label: 'dragão', phase: 'Coroa e chama ancestral', minCalories: 26513000000 }
 ];
 
 function stageFor(calories) {
@@ -222,8 +236,12 @@ function snapshot(pet, now = Date.now()) {
     dead: pet.dead,
     stage: stage.id,
     stageLabel: stage.label,
+    stagePhase: stage.phase,
+    level: STAGES.indexOf(stage) + 1,
+    totalLevels: STAGES.length,
+    caloriesToNext: upcoming ? Math.max(0, upcoming.minCalories - pet.lifetimeCalories) : 0,
     stageProgress: progress,
-    nextStageLabel: upcoming ? upcoming.label : null,
+    nextStageLabel: upcoming ? `${upcoming.label} · ${upcoming.phase}` : null,
     ageHours: (now - pet.bornAt) / 3_600_000,
     lifetimeTokens: pet.lifetimeTokens,
     tokensToday: pet.tokensToday,

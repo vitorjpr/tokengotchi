@@ -13,7 +13,8 @@ mas vivo. Se você sumir de vez, aí morre, e é só chocar um ovo novo e começ
 novo.
 
 Ele conta sozinho: não precisa apontar nada, nem digitar quanto você usou. O app lê
-o que as ferramentas de IA já anotam no seu próprio computador. **Nada é enviado
+o que as ferramentas de IA já anotam no seu próprio computador — **só depois que
+você autoriza cada uma**, no menu do ícone perto do relógio. **Nada é enviado
 para lugar nenhum** — tudo acontece na sua máquina.
 
 Funciona com **Claude Code**, **Codex CLI**, **Grok CLI** e **Cursor**.
@@ -108,16 +109,22 @@ Vá em **[Downloads (Releases)](../../releases/latest)** e baixe **um** arquivo:
 
 | Se você usa | Baixe o arquivo que termina em |
 | --- | --- |
-| **Mac** (qualquer um, Intel ou M1/M2/M3/M4) | **`-universal.dmg`** |
-| **Windows** | **`-Setup-<versão>.exe`** |
+| **Mac com chip Apple** (M1, M2, M3, M4) | **`-arm64.dmg`** |
+| **Mac Intel** | **`-x64.dmg`** |
+| **Windows** (a maioria dos PCs) | **`-Setup-<versão>-x64.exe`** |
+| **Windows em ARM** | **`-Setup-<versão>-arm64.exe`** |
 | **Ubuntu / Linux Mint / Debian** | **`_amd64.deb`** |
 | **Outro Linux** | **`.AppImage`** |
 
-Os nomes trazem o número da versão (por exemplo `Tokengotchi-0.2.0-universal.dmg`),
+Os nomes trazem o número da versão (por exemplo `Tokengotchi-0.5.0-arm64.dmg`),
 que muda a cada lançamento — o que importa é a terminação.
 
-> No Mac é um arquivo só e ele serve para todos os modelos — você não precisa
-> descobrir qual processador o seu tem.
+No Mac, o menu Apple → *Sobre este Mac* diz qual arquivo baixar. Se aparecer
+**Chip** Apple, use o `-arm64.dmg`. Se aparecer **Processador** Intel, use o
+`-x64.dmg`.
+
+No Windows, quase todo PC é x64: baixe o `-x64.exe`. O `-arm64.exe` é só para
+quando *Configurações → Sistema → Sobre* disser que o tipo de sistema é ARM.
 
 ### 2. Instale
 
@@ -160,8 +167,8 @@ Também só na primeira vez.
 ### Pronto! E agora?
 
 O bichinho aparece **no canto superior direito da tela** e um ícone dele fica na
-barra do sistema (perto do relógio). Ele já começa a comer sozinho conforme você
-usa suas ferramentas de IA.
+barra do sistema (perto do relógio). No menu desse ícone, em *Ler logs locais*,
+marque as ferramentas que ele pode ler. Antes disso ele não abre esses arquivos.
 
 - **Dar um nome a ele:** clique no nome dele no topo da janelinha, digite e
   aperte `Enter`. Também dá pelo menu do ícone, em *Renomear o bichinho…*.
@@ -197,7 +204,7 @@ nela. Você continua com o mesmo bichinho e com as calorias que ele já acumulou
 | Sistema | O que fazer |
 | --- | --- |
 | **Mac** | Baixe o `.dmg` novo e arraste para *Applications* de novo. Ele pergunta se quer substituir — diga que sim. |
-| **Windows** | Rode o novo `-Setup-<versão>.exe`. Ele atualiza sozinho, por cima. |
+| **Windows** | Rode o novo `-Setup-<versão>-x64.exe` (ou `-arm64.exe` num PC ARM). Ele atualiza sozinho, por cima. |
 | **Ubuntu/Debian** | Dê dois cliques no `.deb` novo, ou `sudo dpkg -i tokengotchi_<versão>_amd64.deb`. |
 | **Outro Linux** | Substitua o `.AppImage` antigo pelo novo. |
 
@@ -238,8 +245,8 @@ cd tokengotchi
 mise trust && mise install
 mise exec -- npm install
 
-mise exec -- npm run dist:mac     # .dmg + .zip (universal)
-mise exec -- npm run dist:win     # instalador .exe + .zip (x64 e arm64)
+mise exec -- npm run dist:mac     # .dmg + .zip (x64 e arm64, separados)
+mise exec -- npm run dist:win     # instalador .exe + .zip (x64 e arm64, separados)
 mise exec -- npm run dist:linux   # .AppImage + .deb (x64 e arm64)
 ```
 
@@ -285,9 +292,12 @@ mise run doctor         # últimas 48h
 mise run doctor 720     # últimos 30 dias
 ```
 
-Ele lista cada fonte, se o diretório existe, quantos arquivos encontrou e quantos
-tokens conseguiu ler. Se alguma linha vier com `✗`, é só ajustar o caminho na config
-(veja abaixo) — nada quebra por causa disso.
+Ele lista cada fonte, se você já autorizou a leitura, se o diretório existe,
+quantos arquivos encontrou e quantos tokens conseguiu ler. Fonte sem consentimento
+não é aberta. Quem já tinha `"enabled": true` sem o campo `consented` segue
+autorizado. Caminho fora da lista permitida aparece como ignorado. Se alguma
+linha vier com `✗`, dá para ajustar o caminho na config (veja abaixo) — desde que
+continue dentro da pasta daquela ferramenta. Nada quebra por causa disso.
 
 Para gerar um `.app` de verdade: `mise exec -- npm run dist` (usa electron-builder, baixa ~200 MB na primeira vez).
 
@@ -445,18 +455,68 @@ VS Code, do qual o Cursor é um fork. Rode `mise run doctor` no seu sistema para
 confirmar — se vier `✗`, corrija na config e mande um PR.
 
 A leitura é incremental: o app guarda o offset de cada arquivo, então reiniciar não
-faz o bichinho comer duas vezes. E na primeira execução ele só marca a posição atual
-dos logs — ninguém nasce com meses de histórico na barriga.
+faz o bichinho comer duas vezes. Na primeira execução — e na primeira varredura
+depois que você autoriza uma fonte — ele só marca a posição atual dos logs.
+Ninguém nasce com meses de histórico na barriga.
+
+### Privacidade das fontes
+
+Claude Code, Codex, Grok e Cursor nascem **desligados** numa instalação nova
+(`"enabled": false` e `"consented": false`). O checkbox *Ler logs locais* no
+menu da bandeja grava `"consented": true` no `sources.json`. Com
+`"consented": false` o app não abre os arquivos.
+
+Na atualização, um `sources.json` que já tinha `"enabled": true` e **não** tem
+o campo `consented` continua lendo. Esse config antigo vale como consentimento:
+não é preciso marcar de novo na bandeja. Os cursores já gravados seguem de
+onde pararam.
+
+O que fica em disco sobre a leitura é o `cursors.json`: offset, data de
+modificação e totais de tokens já vistos. O texto das conversas não é copiado.
+
+Os `roots` não podem apontar para qualquer pasta. A lista permitida está em
+`BUILTIN_ROOT_ALLOWLIST`, em `src/main/sources.js`, e é repetida em
+`config/default-sources.json`. Um root fora dela — `~/.ssh`, `/etc`, a pasta do
+usuário, um `..` que escape, ou um link saindo da pasta permitida — é ignorado.
+O `rootAllowlist` do seu `sources.json` só pode **apertar** essa lista.
 
 ## Alimentando de fora (qualquer ferramenta)
 
-O app sobe um servidor local em `127.0.0.1:4736`:
+O app sobe um servidor local em `127.0.0.1:4736`. Cada rota de controle exige o
+segredo compartilhado de `ingest.token` no header `Authorization: Bearer`.
+Sem esse header, `/feed` não alimenta o bichinho, e `/status`, `/show` e
+`/hide` respondem 401. Na primeira execução o app gera o segredo (64
+caracteres hexadecimais), grava no `sources.json` da pasta de dados e
+restringe o arquivo à leitura do seu usuário. O `token` vazio do
+`config/default-sources.json` é só o espaço reservado — não é uma senha.
 
 ```bash
-curl -s localhost:4736/feed -d '{"source":"grok","input_tokens":800,"output_tokens":1200}'
-curl -s localhost:4736/status
-curl -s localhost:4736/show      # revela a janela
-curl -s localhost:4736/hide      # esconde de novo
+# $TOKEN é o ingest.token do sources.json (ou a variável TOKENGOTCHI_TOKEN)
+curl -s localhost:4736/feed \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"source":"grok","input_tokens":800,"output_tokens":1200}'
+curl -s localhost:4736/status -H "Authorization: Bearer $TOKEN"
+curl -s localhost:4736/show   -H "Authorization: Bearer $TOKEN"   # revela a janela
+curl -s localhost:4736/hide   -H "Authorization: Bearer $TOKEN"   # esconde de novo
+```
+
+O segredo fica no `sources.json` da pasta de dados: no macOS,
+`~/Library/Application Support/Tokengotchi/`; no Linux, `~/.config/Tokengotchi/`
+ou `~/.config/tokengotchi/`; no Windows, `%APPDATA%\Tokengotchi\`. O
+`hooks/feed.sh` procura nesses caminhos. A variável `TOKENGOTCHI_TOKEN` tem
+prioridade sobre o arquivo. A porta, se não for a padrão, sai de `ingest.port`
+ou de `TOKENGOTCHI_PORT`. Para apontar outro arquivo, use `TOKENGOTCHI_SOURCES`.
+
+Há limite de taxa, com baldes separados: tentativas sem segredo não consomem
+a cota do hook autenticado. Acima do limite a resposta é HTTP 429 e o
+bichinho não muda. Uma contagem negativa, fracionária ou acima de 100 milhões
+de tokens num campo é recusada.
+
+Para desligar o servidor por completo, em `sources.json`:
+
+```json
+"ingest": { "enabled": false, "port": 4736, "token": "" }
 ```
 
 O `/status` também mostra a evolução: `level` e `totalLevels` indicam o nível
@@ -471,13 +531,17 @@ O `/status` devolve o mesmo estado que a janela recebe, incluindo `version`
 descobre, em um comando, por que uma faixa de atualização está aparecendo:
 
 ```bash
-curl -s localhost:4736/status | python3 -m json.tool | grep -E "version|update|pending"
+curl -s localhost:4736/status -H "Authorization: Bearer $TOKEN" \
+  | python3 -m json.tool | grep -E "version|update|pending"
 ```
 
 Se a porta 4736 já estiver ocupada, o app avisa no console e segue comendo dos logs
 normalmente — só o servidor fica fora. Dá para mudar em `ingest.port` no `sources.json`.
 
-Tem um atalho em `hooks/feed.sh`:
+Tem um atalho em `hooks/feed.sh`. A fonte só aceita letras, dígitos e `._-`;
+os números só aceitam dígitos. O JSON é montado no Python e enviado com o
+segredo lido do ambiente ou do `sources.json` — esses valores não entram em
+string de comando do shell. Precisa de `python3` (já vem no macOS).
 
 ```bash
 chmod +x hooks/feed.sh
@@ -539,9 +603,16 @@ dados do usuário, que muda conforme o sistema:
 
 O menu da bandeja tem **Abrir pasta de dados**, que leva direto ao lugar certo.
 
-Edite esse arquivo para ligar/desligar fontes, corrigir caminhos ou mudar a porta.
-Junto dele ficam `pet.json` (o bichinho) e `cursors.json` (a posição de leitura dos logs).
-Apagar o `pet.json` é o botão de reset definitivo.
+Edite esse arquivo para corrigir caminhos ou mudar a porta. Para autorizar uma
+fonte à mão, ponha `"consented": true` e `"enabled": true`. Para pausar,
+`"enabled": false` basta — o consentimento continua gravado. Quem atualiza a
+partir de um config só com `"enabled": true` (sem `consented`) não precisa
+marcar a bandeja de novo: essa fonte segue ligada. Raiz fora da lista
+permitida é ignorada; o `mise run doctor` mostra quais.
+
+Junto dele ficam `pet.json` (o bichinho) e `cursors.json` (a posição de leitura dos
+logs — offset e totais, não o texto). Apagar o `pet.json` é o botão de reset
+definitivo.
 
 ## Estrutura
 
@@ -549,12 +620,13 @@ Apagar o `pet.json` é o botão de reset definitivo.
 src/main/main.js      janela, tray, loop de varredura a cada 8s
 src/main/sources.js   leitura incremental dos logs + parsers por ferramenta
 src/main/pet.js       fome, saúde, evolução, persistência
-src/main/ingest.js    servidor HTTP local (/feed, /status, /show, /hide)
+src/main/ingest.js    servidor HTTP local autenticado (/feed, /status, /show, /hide)
 src/main/updates.js   checagem de versão nova (única saída de rede) e detecção
                       de bundle trocado sob o processo em execução
 src/renderer/         a janelinha: pixel art em canvas + medidores
 config/               fontes padrão, copiadas para o Application Support na 1ª vez
-hooks/feed.sh         atalho para alimentar via hook de qualquer ferramenta
+hooks/feed.sh         atalho autenticado para alimentar via hook de qualquer ferramenta
+scripts/ingest-call.js  status/show/hide com o segredo, usado pelas tasks do mise
 scripts/doctor.js     diagnóstico das fontes
 scripts/selftest.js   testes das regras e dos parsers (mise run test)
 scripts/make-icon.js  gera build/icon.png a partir de pixel art, sem dependências

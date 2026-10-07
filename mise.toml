@@ -23,11 +23,11 @@ run = "node scripts/selftest.js"
 
 [tasks.show]
 description = "Traz a janela de volta se ela sumiu (escondida ou minimizada)"
-run = "curl -s localhost:4736/show && echo"
+run = "node scripts/ingest-call.js show"
 
 [tasks.status]
 description = "Mostra o estado do bichinho em JSON"
-run = "curl -s localhost:4736/status && echo"
+run = "node scripts/ingest-call.js status"
 
 [tasks.icon]
 description = "Regenera build/icon.png a partir da pixel art"

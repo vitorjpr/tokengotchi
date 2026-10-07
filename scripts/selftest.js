@@ -4,16 +4,29 @@
 /** Teste rápido das regras do bichinho e dos parsers. node scripts/selftest.js */
 
 const assert = require('assert');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
+const http = require('http');
 const os = require('os');
 const path = require('path');
 
 const sources = require('../src/main/sources');
 const petLib = require('../src/main/pet');
 const updates = require('../src/main/updates');
+const ingest = require('../src/main/ingest');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tokengotchi-test-'));
 const HOUR = 3_600_000;
+
+// Os fixtures vivem no tmp, fora da política embutida. O override é opção de
+// chamada, não chave do JSON — o app de verdade não passa isso.
+function scan(list, cursorState, extra = {}) {
+  return sources.collect({ sources: list }, cursorState, {
+    rootAllowlist: [tmp],
+    now: Date.now(),
+    ...extra
+  });
+}
 
 // --- parser do Claude Code ---
 const ccDir = path.join(tmp, 'claude', 'projects', 'demo');
@@ -42,6 +55,7 @@ const ccSource = {
   id: 'cc',
   label: 'Claude Code',
   enabled: true,
+  consented: true,
   parser: 'claude-code',
   roots: [ccDir],
   extensions: ['.jsonl'],
@@ -49,12 +63,12 @@ const ccSource = {
 };
 
 const cursors = {};
-let harvest = sources.collect({ sources: [ccSource] }, cursors, { now: Date.now() });
+let harvest = scan([ccSource], cursors);
 assert.strictEqual(harvest.tokens, 1350, 'soma de tokens do Claude Code');
 assert.strictEqual(harvest.calories, 100 + 50 * 4 + 200 * 1.25 + 1000 * 0.1, 'calorias ponderadas');
 
 // Segunda leitura sem novas linhas não pode contar de novo.
-harvest = sources.collect({ sources: [ccSource] }, cursors, { now: Date.now() });
+harvest = scan([ccSource], cursors);
 assert.strictEqual(harvest.tokens, 0, 'leitura incremental não repete');
 
 // Append é detectado.
@@ -62,7 +76,7 @@ fs.appendFileSync(
   ccFile,
   JSON.stringify({ type: 'assistant', message: { usage: { output_tokens: 10 } } }) + '\n'
 );
-harvest = sources.collect({ sources: [ccSource] }, cursors, { now: Date.now() });
+harvest = scan([ccSource], cursors);
 assert.strictEqual(harvest.tokens, 10, 'novas linhas são digeridas');
 
 // --- parser do Codex (totais acumulados) ---
@@ -80,16 +94,17 @@ const codexSource = {
   id: 'codex',
   label: 'Codex',
   enabled: true,
+  consented: true,
   parser: 'codex',
   roots: [codexDir],
   extensions: ['.jsonl'],
   maxDepth: 2
 };
 const codexCursors = {};
-harvest = sources.collect({ sources: [codexSource] }, codexCursors, { now: Date.now() });
+harvest = scan([codexSource], codexCursors);
 assert.strictEqual(harvest.tokens, 500, 'primeiro total do Codex');
 fs.appendFileSync(codexFile, codexEvent(1200) + '\n');
-harvest = sources.collect({ sources: [codexSource] }, codexCursors, { now: Date.now() });
+harvest = scan([codexSource], codexCursors);
 assert.strictEqual(harvest.tokens, 700, 'Codex conta apenas o delta do acumulado');
 
 // --- parser do Codex: formato real, com cache embutido no input ---
@@ -137,7 +152,7 @@ fs.writeFileSync(
 
 const codexRealSource = { ...codexSource, id: 'codex-real', roots: [codexRealDir] };
 const codexRealCursors = {};
-harvest = sources.collect({ sources: [codexRealSource] }, codexRealCursors, { now: Date.now() });
+harvest = scan([codexRealSource], codexRealCursors);
 // input líquido = 16526 - 12672 = 3854; cacheRead = 12672; output = 239.
 assert.strictEqual(harvest.usage.input, 3854, 'Codex desconta o cache do input');
 assert.strictEqual(harvest.usage.cacheRead, 12672, 'Codex credita cached_input_tokens como cache read');
@@ -151,7 +166,7 @@ assert.strictEqual(
 
 // O delta acumulado continua valendo no formato real.
 fs.appendFileSync(codexRealFile, codexRealEvent(20000, 15000, 500, 200) + '\n');
-harvest = sources.collect({ sources: [codexRealSource] }, codexRealCursors, { now: Date.now() });
+harvest = scan([codexRealSource], codexRealCursors);
 // novo líquido: input 20000-15000=5000, cacheRead 15000, output 500.
 assert.strictEqual(harvest.usage.input, 5000 - 3854, 'delta do input líquido');
 assert.strictEqual(harvest.usage.cacheRead, 15000 - 12672, 'delta do cache read');
@@ -168,6 +183,7 @@ const actSource = {
   id: 'act',
   label: 'Cursor',
   enabled: true,
+  consented: true,
   parser: 'activity',
   roots: [actDir],
   extensions: ['.json'],
@@ -179,13 +195,13 @@ const actCursors = {};
 const t0 = Date.now();
 
 // Primeira varredura só anota o mtime: sem mtime anterior não há evento.
-harvest = sources.collect({ sources: [actSource] }, actCursors, { now: t0 });
+harvest = scan([actSource], actCursors, { now: t0 });
 assert.strictEqual(harvest.tokens, 0, 'primeira varredura de atividade não credita nada');
 
 // Arquivo mexeu → um evento estimado (70% entrada / 30% saída).
 const touch1 = new Date(t0 + 60_000);
 fs.utimesSync(actFile, touch1, touch1);
-harvest = sources.collect({ sources: [actSource] }, actCursors, { now: t0 + 60_000 });
+harvest = scan([actSource], actCursors, { now: t0 + 60_000 });
 assert.strictEqual(harvest.tokens, 1800, 'atividade detectada vira estimativa de 1800 tokens');
 assert.strictEqual(harvest.usage.input, 1260, 'estimativa é 70% entrada');
 assert.strictEqual(harvest.usage.output, 540, 'estimativa é 30% saída');
@@ -195,25 +211,22 @@ assert.strictEqual(harvest.bySource.act.estimated, true, 'fonte marcada como est
 // Mexeu de novo dentro dos 45s: o limitador tem que segurar.
 const touch2 = new Date(t0 + 70_000);
 fs.utimesSync(actFile, touch2, touch2);
-harvest = sources.collect({ sources: [actSource] }, actCursors, { now: t0 + 70_000 });
+harvest = scan([actSource], actCursors, { now: t0 + 70_000 });
 assert.strictEqual(harvest.tokens, 0, 'evento dentro do intervalo mínimo não conta');
 
 // Passado o intervalo, volta a contar.
 const touch3 = new Date(t0 + 200_000);
 fs.utimesSync(actFile, touch3, touch3);
-harvest = sources.collect({ sources: [actSource] }, actCursors, { now: t0 + 200_000 });
+harvest = scan([actSource], actCursors, { now: t0 + 200_000 });
 assert.strictEqual(harvest.tokens, 1800, 'passado o intervalo mínimo, conta de novo');
 
 // Arquivo parado não gera evento, por mais que o tempo passe.
-harvest = sources.collect({ sources: [actSource] }, actCursors, { now: t0 + 900_000 });
+harvest = scan([actSource], actCursors, { now: t0 + 900_000 });
 assert.strictEqual(harvest.tokens, 0, 'arquivo sem alteração não credita');
 
 // --- primeira execução não engorda com histórico antigo ---
 const freshCursors = {};
-harvest = sources.collect({ sources: [ccSource] }, freshCursors, {
-  now: Date.now(),
-  firstRun: true
-});
+harvest = scan([ccSource], freshCursors, { firstRun: true });
 assert.strictEqual(harvest.tokens, 0, 'primeira execução apenas marca posição');
 
 // --- nome do bichinho ---
@@ -488,6 +501,19 @@ for (const [, channel] of preloadJs.matchAll(/ipcRenderer\.send\('([^']+)'/g)) {
   );
 }
 
+assert.ok(
+  mainJs.includes('setSourceConsent'),
+  'o menu da bandeja grava o consentimento da fonte'
+);
+assert.ok(
+  mainJs.includes('baselineNewSources: true'),
+  'ligar uma fonte nova só marca a posição, sem engolir o histórico'
+);
+assert.ok(
+  !/rootAllowlist:\s*config\.rootAllowlist/.test(mainJs),
+  'o app não repassa o rootAllowlist do JSON como opção que alargaria a política'
+);
+
 // --- regras do bichinho ---
 const now = Date.now();
 let pet = petLib.freshPet(now);
@@ -585,5 +611,634 @@ assert.strictEqual(reloadedEvolution.generation, 3);
 assert.strictEqual(petLib.snapshot(reloadedEvolution, now).stage, 'guerreiro');
 assert.strictEqual(petLib.snapshot(petLib.freshPet(now, 4), now).level, 1);
 
+// --- lista de caminhos e consentimento das fontes de log ---
+const defaults = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '..', 'config', 'default-sources.json'), 'utf8')
+);
+assert.ok(Array.isArray(defaults.rootAllowlist) && defaults.rootAllowlist.length > 0);
+for (const entry of defaults.rootAllowlist) {
+  assert.ok(
+    sources.BUILTIN_ROOT_ALLOWLIST.includes(entry),
+    `rootAllowlist padrão só repete a política do código: ${entry}`
+  );
+}
+for (const source of defaults.sources) {
+  assert.notStrictEqual(source.consented, true, `${source.id} nasce sem consentimento`);
+  assert.strictEqual(sources.isSourceActive(source), false, `${source.id} fica inativa`);
+  for (const root of source.roots) {
+    assert.strictEqual(sources.isAllowedRoot(root), true, `${root} está na política`);
+  }
+}
+
+const widened = sources.effectiveAllowlist({
+  rootAllowlist: ['/etc', '~/.ssh', '~', '/']
+});
+assert.strictEqual(
+  widened.length,
+  sources.BUILTIN_ROOT_ALLOWLIST.length,
+  'lista hostil não alarga a política'
+);
+assert.strictEqual(sources.isAllowedRoot('/etc', widened), false, '/etc continua de fora');
+assert.strictEqual(sources.isAllowedRoot('~/.ssh', widened), false, '~/.ssh continua de fora');
+assert.strictEqual(sources.isAllowedRoot('~', widened), false, 'a home inteira continua de fora');
+assert.strictEqual(
+  sources.isAllowedRoot('~/.claude/projects', widened),
+  true,
+  'a pasta do Claude segue permitida quando a lista do config é inválida'
+);
+
+const narrowed = sources.effectiveAllowlist({ rootAllowlist: ['~/.claude', '/etc'] });
+assert.strictEqual(sources.isAllowedRoot('~/.claude/projects', narrowed), true);
+assert.strictEqual(
+  sources.isAllowedRoot('~/.codex/sessions', narrowed),
+  false,
+  'rootAllowlist do config pode apertar a política'
+);
+assert.strictEqual(sources.isAllowedRoot('/etc', narrowed), false);
+
+const usageLine = (n) =>
+  JSON.stringify({ usage: { input_tokens: n, output_tokens: n } }) + '\n';
+
+const secretDir = path.join(tmp, 'secret-outside');
+fs.mkdirSync(secretDir, { recursive: true });
+fs.writeFileSync(path.join(secretDir, 'leak.jsonl'), usageLine(50));
+
+const hostile = {
+  id: 'hostile',
+  label: 'Hostil',
+  enabled: true,
+  consented: true,
+  parser: 'generic-usage',
+  roots: [
+    secretDir,
+    '/etc',
+    '~/.ssh',
+    '~/.claude/../../.ssh',
+    path.join(secretDir, '..', '..', 'etc'),
+    ''
+  ],
+  extensions: ['.jsonl', '.json'],
+  maxDepth: 4
+};
+const hostileCursors = {};
+harvest = sources.collect({ sources: [hostile] }, hostileCursors, { now: Date.now() });
+assert.strictEqual(harvest.tokens, 0, 'root fora da política não alimenta');
+assert.strictEqual(harvest.bySource.hostile.files, 0, 'root fora da política não é varrido');
+assert.deepStrictEqual(hostileCursors, {}, 'root rejeitado não grava cursor');
+assert.strictEqual(sources.listFiles(hostile).length, 0, 'listFiles ignora roots fora da política');
+
+const quietSource = { ...ccSource, id: 'quiet', consented: false, enabled: true };
+const quietCursors = {};
+harvest = scan([quietSource], quietCursors);
+assert.strictEqual(harvest.tokens, 0, 'consented:false explícito não lê, mesmo com enabled:true');
+assert.strictEqual(harvest.bySource.quiet, undefined, 'fonte sem consentimento nem entra na varredura');
+assert.deepStrictEqual(quietCursors, {}, 'sem consentimento não grava offset');
+
+const legacy = { ...ccSource, id: 'legacy', enabled: true };
+delete legacy.consented;
+assert.strictEqual(legacy.consented, undefined);
+assert.strictEqual(
+  sources.isSourceActive(legacy),
+  true,
+  'enabled:true sem o campo consented conta como consentido'
+);
+assert.strictEqual(
+  sources.isSourceActive({ ...legacy, consented: null }),
+  true,
+  'consented nulo com enabled:true também conta como consentido'
+);
+assert.strictEqual(
+  sources.isSourceActive({ id: 'legacy-off', enabled: false }),
+  false,
+  'enabled:false sem consented continua desligada'
+);
+const legacyCursors = {};
+harvest = scan([legacy], legacyCursors);
+assert.ok(harvest.tokens > 0, 'config antigo com enabled:true continua lendo');
+fs.appendFileSync(
+  ccFile,
+  JSON.stringify({ type: 'assistant', message: { usage: { output_tokens: 4 } } }) + '\n'
+);
+harvest = scan([legacy], legacyCursors);
+assert.strictEqual(harvest.tokens, 4, 'config antigo segue incremental sem novo clique na bandeja');
+
+const paused = { ...ccSource, id: 'paused', consented: true, enabled: false };
+harvest = scan([paused], {});
+assert.strictEqual(harvest.bySource.paused, undefined, 'fonte pausada não é varrida');
+
+const optIn = { sources: [{ id: 'claude-code', enabled: false, consented: false }] };
+assert.strictEqual(sources.setSourceConsent(optIn, 'claude-code', true), true);
+assert.strictEqual(optIn.sources[0].consented, true, 'ligar grava o consentimento');
+assert.strictEqual(optIn.sources[0].enabled, true, 'ligar também habilita');
+assert.strictEqual(sources.isSourceActive(optIn.sources[0]), true);
+sources.setSourceConsent(optIn, 'claude-code', false);
+assert.strictEqual(optIn.sources[0].enabled, false, 'desligar pausa');
+assert.strictEqual(optIn.sources[0].consented, true, 'desligar não apaga o consentimento');
+assert.strictEqual(sources.isSourceActive(optIn.sources[0]), false);
+assert.strictEqual(sources.setSourceConsent(optIn, 'nao-existe', true), false);
+
+const baselineCursors = {};
+const baselineSource = { ...ccSource, id: 'base' };
+harvest = scan([baselineSource], baselineCursors, { baselineNewSources: true });
+assert.strictEqual(harvest.tokens, 0, 'primeira varredura consentida só marca a posição');
+assert.ok(Object.keys(baselineCursors).length > 0, 'o offset fica gravado');
+for (const cursor of Object.values(baselineCursors)) {
+  assert.strictEqual(cursor.lines, undefined, 'cursor não guarda texto de transcript');
+  for (const [key, value] of Object.entries(cursor)) {
+    assert.notStrictEqual(typeof value, 'string', `cursor.${key} não é texto de log`);
+  }
+}
+fs.appendFileSync(
+  ccFile,
+  JSON.stringify({ type: 'assistant', message: { usage: { output_tokens: 7 } } }) + '\n'
+);
+harvest = scan([baselineSource], baselineCursors, { baselineNewSources: true });
+assert.strictEqual(harvest.tokens, 7, 'depois do marco, só a linha nova conta');
+
+const gate = path.join(tmp, 'gate');
+fs.mkdirSync(gate, { recursive: true });
+fs.writeFileSync(path.join(gate, 'ok.jsonl'), usageLine(3));
+const link = path.join(gate, 'alias');
+let canLink = true;
+try {
+  fs.symlinkSync(secretDir, link, process.platform === 'win32' ? 'junction' : 'dir');
+} catch {
+  canLink = false;
+}
+const gateSource = {
+  id: 'gate',
+  label: 'Gate',
+  enabled: true,
+  consented: true,
+  parser: 'generic-usage',
+  roots: [gate],
+  extensions: ['.jsonl'],
+  maxDepth: 3
+};
+const gateFiles = sources.listFiles(gateSource, { rootAllowlist: [gate] });
+assert.ok(gateFiles.some((f) => f.endsWith('ok.jsonl')), 'arquivo real dentro da pasta entra');
+assert.ok(
+  gateFiles.every((f) => !f.includes('leak.jsonl')),
+  'link para fora da pasta não entra na varredura'
+);
+if (canLink) {
+  const escaped = { ...gateSource, id: 'escaped', roots: [link] };
+  assert.strictEqual(
+    sources.listFiles(escaped, { rootAllowlist: [gate] }).length,
+    0,
+    'root que é link para fora da lista é rejeitado'
+  );
+  assert.strictEqual(sources.isAllowedRoot(link, [gate]), false);
+}
+const climbed = { ...gateSource, id: 'climbed', roots: [path.join(gate, '..', 'secret-outside')] };
+assert.strictEqual(
+  sources.listFiles(climbed, { rootAllowlist: [gate] }).length,
+  0,
+  '`..` não escapa da pasta permitida'
+);
+
 fs.rmSync(tmp, { recursive: true, force: true });
-console.log('ok — parsers, leitura incremental e ciclo de vida conferidos');
+
+// --- segredo do ingest ---
+// O arquivo versionado não pode nascer com uma senha compartilhada.
+assert.ok(
+  !ingest.tokenIsUsable(defaults.ingest && defaults.ingest.token),
+  'default-sources.json não pode vir com segredo utilizável'
+);
+
+const kept = { ingest: { token: 'a'.repeat(32), port: 4736 } };
+let persisted = 0;
+assert.strictEqual(
+  ingest.ensureIngestToken(kept, () => {
+    persisted += 1;
+  }),
+  'a'.repeat(32),
+  'segredo já utilizável é preservado'
+);
+assert.strictEqual(persisted, 0, 'segredo existente não regrava a config');
+
+const fresh = { ingest: { token: '', port: 9 } };
+const generated = ingest.ensureIngestToken(fresh, () => {
+  persisted += 1;
+});
+assert.ok(ingest.tokenIsUsable(generated), 'token gerado é utilizável');
+assert.strictEqual(generated, fresh.ingest.token, 'token gerado fica na config');
+assert.strictEqual(persisted, 1, 'token novo pede gravação');
+assert.notStrictEqual(generated, 'a'.repeat(32), 'token novo não reaproveita o anterior');
+
+const weird = { ingest: { token: 'abc$(touch/tmp/pwn)-ok' } };
+assert.strictEqual(
+  ingest.ensureIngestToken(weird, () => {
+    persisted += 1;
+  }),
+  weird.ingest.token,
+  'segredo com caracteres de shell, se já for utilizável, não é trocado'
+);
+assert.strictEqual(persisted, 1, 'preservar segredo estranho não regrava');
+
+assert.throws(
+  () =>
+    ingest.ensureIngestToken({ ingest: { token: 'curto' } }, () => {
+      throw new Error('disco');
+    }),
+  /disco/,
+  'falha ao gravar propaga'
+);
+
+const mainJsForIngest = fs.readFileSync(path.join(__dirname, '..', 'src/main/main.js'), 'utf8');
+assert.ok(
+  /ensureIngestToken\(/.test(mainJsForIngest),
+  'main.js precisa gerar o segredo do ingest'
+);
+assert.ok(
+  /token:\s*config\.ingest\?\.token/.test(mainJsForIngest),
+  'o servidor local precisa receber o segredo da config'
+);
+assert.ok(/chmodSync\(target,\s*0o600\)/.test(mainJsForIngest), 'sources.json fica restrito ao usuário');
+
+const feedSh = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'feed.sh'), 'utf8');
+assert.ok(feedSh.includes('json.dumps'), 'feed.sh monta o JSON fora do shell');
+assert.ok(!/curl[\s\S]*\$\{/.test(feedSh), 'feed.sh não interpola dados num comando curl');
+assert.ok(!feedSh.includes('$TOKENGOTCHI_TOKEN'), 'o shell do feed.sh não expande o segredo');
+
+const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+assert.ok(readme.includes('Authorization: Bearer'), 'README documenta o header de autenticação');
+assert.ok(readme.includes('TOKENGOTCHI_TOKEN'), 'README documenta a variável do hook');
+assert.ok(readme.includes('ingest.token'), 'README diz onde mora o segredo');
+assert.ok(
+  readme.includes('não é preciso marcar de novo na bandeja'),
+  'README avisa que config antigo com enabled:true não pede novo opt-in'
+);
+assert.ok(
+  !/mesmo que um config antigo tenha\s*\n?"enabled": true/.test(readme),
+  'README não manda reler a bandeja num config que já estava ligado'
+);
+
+function httpRequest({ port, method, path: reqPath, token, body }) {
+  return new Promise((resolve, reject) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const req = http.request(
+      { hostname: '127.0.0.1', port, method, path: reqPath, headers },
+      (res) => {
+        let data = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        res.on('end', () => {
+          let parsed = null;
+          try {
+            parsed = JSON.parse(data);
+          } catch {
+            parsed = null;
+          }
+          resolve({ status: res.statusCode, json: parsed, raw: data });
+        });
+      }
+    );
+    req.on('error', reject);
+    if (body != null) req.write(body);
+    req.end();
+  });
+}
+
+function listen(server) {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.once('listening', () => resolve(server.address().port));
+  });
+}
+
+async function testIngestAuth() {
+  const feeds = [];
+  let reveals = 0;
+  let hides = 0;
+  let statuses = 0;
+  const token = 's3cr3t-token-value';
+  const server = ingest.startIngest({
+    port: 0,
+    token,
+    rateLimit: { authenticatedMax: 6, anonymousMax: 5, windowMs: 60_000 },
+    onFeed(payload) {
+      feeds.push(payload);
+      return { ok: true, tokens: 1 };
+    },
+    getStatus() {
+      statuses += 1;
+      return { ok: true, satiety: 10 };
+    },
+    onReveal() {
+      reveals += 1;
+    },
+    onHide() {
+      hides += 1;
+    }
+  });
+
+  try {
+    const port = await listen(server);
+
+    const anon = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/feed',
+      body: JSON.stringify({ source: 'x', output_tokens: 50 })
+    });
+    assert.strictEqual(anon.status, 401, 'POST /feed sem segredo é 401');
+    assert.strictEqual(feeds.length, 0, 'POST /feed sem segredo não alimenta');
+
+    const wrong = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/feed',
+      token: 'wrong-token-value',
+      body: JSON.stringify({ source: 'x', output_tokens: 50 })
+    });
+    assert.strictEqual(wrong.status, 401, 'segredo errado é 401');
+    assert.strictEqual(feeds.length, 0, 'segredo errado não alimenta');
+
+    const showAnon = await httpRequest({ port, method: 'GET', path: '/show' });
+    const hideAnon = await httpRequest({ port, method: 'GET', path: '/hide' });
+    const statusAnon = await httpRequest({ port, method: 'GET', path: '/status' });
+    assert.strictEqual(showAnon.status, 401, '/show sem segredo é 401');
+    assert.strictEqual(hideAnon.status, 401, '/hide sem segredo é 401');
+    assert.strictEqual(statusAnon.status, 401, '/status sem segredo é 401');
+    const flooded = await httpRequest({ port, method: 'GET', path: '/status' });
+    assert.strictEqual(flooded.status, 429, 'rajada anônima passa a receber 429');
+    assert.strictEqual(reveals, 0, '/show sem segredo não revela');
+    assert.strictEqual(hides, 0, '/hide sem segredo não esconde');
+    assert.strictEqual(statuses, 0, '/status sem segredo não lê o estado');
+
+    // O balde anônimo estourou; o autenticado continua valendo.
+    const authed = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/feed?x=1',
+      token,
+      body: JSON.stringify({ source: 'cursor', label: 'Cursor', input_tokens: 800, output_tokens: 1200 })
+    });
+    assert.strictEqual(authed.status, 200, 'POST /feed com segredo é aceito');
+    assert.deepStrictEqual(feeds[0], {
+      source: 'cursor',
+      label: 'Cursor',
+      input_tokens: 800,
+      output_tokens: 1200
+    });
+
+    const show = await httpRequest({ port, method: 'GET', path: '/show', token });
+    const hide = await httpRequest({ port, method: 'GET', path: '/hide', token });
+    const status = await httpRequest({ port, method: 'GET', path: '/status', token });
+    assert.strictEqual(show.status, 200);
+    assert.strictEqual(show.json.visible, true);
+    assert.strictEqual(reveals, 1);
+    assert.strictEqual(hide.status, 200);
+    assert.strictEqual(hide.json.visible, false);
+    assert.strictEqual(hides, 1);
+    assert.strictEqual(status.status, 200);
+    assert.strictEqual(status.json.satiety, 10);
+    assert.strictEqual(statuses, 1);
+
+    const huge = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/feed',
+      token,
+      body: JSON.stringify({ output_tokens: ingest.MAX_FEED_TOKENS + 1 })
+    });
+    assert.strictEqual(huge.status, 400, 'contagem absurda é recusada');
+    assert.strictEqual(feeds.length, 1, 'contagem absurda não alimenta');
+
+    const badJson = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/feed',
+      token,
+      body: '{nao'
+    });
+    assert.strictEqual(badJson.status, 400, 'JSON inválido continua 400');
+
+    const limited = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/feed',
+      token,
+      body: JSON.stringify({ output_tokens: 1 })
+    });
+    assert.strictEqual(limited.status, 429, 'cota autenticada estourada é 429');
+    assert.strictEqual(feeds.length, 1, '429 autenticado não alimenta');
+
+    const closed = ingest.startIngest({
+      port: 0,
+      token: '',
+      onFeed() {
+        feeds.push({ leaked: true });
+        return { ok: true };
+      },
+      getStatus() {
+        return { secret: true };
+      }
+    });
+    try {
+      const closedPort = await listen(closed);
+      const blocked = await httpRequest({
+        port: closedPort,
+        method: 'POST',
+        path: '/feed',
+        body: JSON.stringify({ output_tokens: 10 })
+      });
+      assert.strictEqual(blocked.status, 401, 'sem segredo configurado o /feed fica fechado');
+      assert.ok(!feeds.some((item) => item.leaked), 'servidor sem segredo não alimenta');
+    } finally {
+      await new Promise((resolve) => closed.close(resolve));
+    }
+
+    await testFeedScript(port, token);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+}
+
+function hookEnv(extra) {
+  const env = { ...process.env };
+  delete env.TOKENGOTCHI_TOKEN;
+  delete env.TOKENGOTCHI_PORT;
+  delete env.TOKENGOTCHI_SOURCES;
+  return { ...env, ...extra };
+}
+
+function runFeed(args, env) {
+  // spawn, não spawnSync: o servidor do teste vive neste processo, e um
+  // spawnSync travaria o event loop enquanto o hook espera a resposta.
+  return new Promise((resolve) => {
+    const child = spawn('bash', [path.join(__dirname, '..', 'hooks', 'feed.sh'), ...args], { env });
+    let stderr = '';
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('error', (err) => resolve({ status: 1, stderr: err.message }));
+    child.on('close', (status) => resolve({ status, stderr }));
+  });
+}
+
+function runNode(args, env) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, args, { env });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('error', (err) => resolve({ status: 1, stdout, stderr: err.message }));
+    child.on('close', (status) => resolve({ status, stdout, stderr }));
+  });
+}
+
+async function testFeedScript(openPort, openToken) {
+  if (process.platform === 'win32') {
+    const bash = spawnSync('bash', ['-c', 'command -v python3'], { encoding: 'utf8' });
+    if (bash.status !== 0) return;
+  } else {
+    const bash = spawnSync('bash', ['-c', 'command -v python3'], { encoding: 'utf8' });
+    assert.strictEqual(bash.status, 0, 'python3 é necessário para testar hooks/feed.sh');
+  }
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tokengotchi-hook-'));
+  const marker = path.join(dir, 'pwned');
+  const scriptFeeds = [];
+  const scriptServer = ingest.startIngest({
+    port: 0,
+    token: openToken,
+    onFeed(payload) {
+      scriptFeeds.push(payload);
+      return { ok: true };
+    },
+    getStatus() {
+      return { ok: true };
+    }
+  });
+
+  try {
+    const port = await listen(scriptServer);
+    assert.notStrictEqual(port, openPort);
+
+    const injected = `$(touch ${marker})`;
+    const injection = await runFeed([injected, '10', '20'], hookEnv({
+      TOKENGOTCHI_PORT: String(port),
+      TOKENGOTCHI_TOKEN: openToken
+    }));
+    assert.strictEqual(injection.status, 0, 'argumento hostil não faz o hook falhar');
+    assert.ok(!fs.existsSync(marker), 'feed.sh não executa substituição de comando no nome da fonte');
+    assert.strictEqual(scriptFeeds.length, 0, 'fonte hostil não chega no /feed');
+
+    const breakout = await runFeed(['x","output_tokens":999999,"y":"', '1', '2'], hookEnv({
+      TOKENGOTCHI_PORT: String(port),
+      TOKENGOTCHI_TOKEN: openToken
+    }));
+    assert.strictEqual(breakout.status, 0);
+    assert.strictEqual(scriptFeeds.length, 0, 'aspas no nome da fonte não reescrevem o JSON');
+
+    const dirtyCount = await runFeed(['cursor', '1;touch ' + marker, '2'], hookEnv({
+      TOKENGOTCHI_PORT: String(port),
+      TOKENGOTCHI_TOKEN: openToken
+    }));
+    assert.strictEqual(dirtyCount.status, 0);
+    assert.ok(!fs.existsSync(marker), 'contagem hostil não vira comando');
+    assert.strictEqual(scriptFeeds.length, 0, 'contagem hostil não chega no /feed');
+
+    // Sem espaço: o segredo precisa ser utilizável no header. Se o shell
+    // expandir $(...), `touch<arquivo` cria o marcador mesmo assim.
+    const nastyToken = `abc$(touch<${marker})zzzz`;
+    const nastyServer = ingest.startIngest({
+      port: 0,
+      token: nastyToken,
+      onFeed(payload) {
+        scriptFeeds.push(payload);
+        return { ok: true };
+      },
+      getStatus() {
+        return { via: 'nasty' };
+      }
+    });
+    try {
+      const nastyPort = await listen(nastyServer);
+      const sent = await runFeed(['cursor', '800', '1200'], hookEnv({
+        TOKENGOTCHI_PORT: String(nastyPort),
+        TOKENGOTCHI_TOKEN: nastyToken
+      }));
+      assert.strictEqual(sent.status, 0);
+      assert.ok(!fs.existsSync(marker), 'segredo com $(...) não é expandido pelo shell');
+      assert.strictEqual(scriptFeeds.length, 1, 'hook autenticado entrega a comida');
+      assert.deepStrictEqual(scriptFeeds[0], {
+        source: 'cursor',
+        label: 'cursor',
+        input_tokens: 800,
+        output_tokens: 1200
+      });
+    } finally {
+      await new Promise((resolve) => nastyServer.close(resolve));
+    }
+
+    const sourcesPath = path.join(dir, 'sources.json');
+    const fileToken = 'token-from-sources-json';
+    const fileServer = ingest.startIngest({
+      port: 0,
+      token: fileToken,
+      onFeed(payload) {
+        scriptFeeds.push(payload);
+        return { ok: true };
+      },
+      getStatus() {
+        return { via: 'file' };
+      }
+    });
+    try {
+      const filePort = await listen(fileServer);
+      fs.writeFileSync(
+        sourcesPath,
+        JSON.stringify({ ingest: { port: filePort, token: fileToken } })
+      );
+      const fromFile = await runFeed(['grok', '3', '4'], hookEnv({ TOKENGOTCHI_SOURCES: sourcesPath }));
+      assert.strictEqual(fromFile.status, 0);
+      assert.strictEqual(scriptFeeds.length, 2, 'hook lê porta e segredo do sources.json');
+      assert.deepStrictEqual(scriptFeeds[1], {
+        source: 'grok',
+        label: 'grok',
+        input_tokens: 3,
+        output_tokens: 4
+      });
+
+      const wrongFile = await runFeed(['grok', '3', '4'], hookEnv({
+        TOKENGOTCHI_SOURCES: sourcesPath,
+        TOKENGOTCHI_TOKEN: 'not-the-file-token'
+      }));
+      assert.strictEqual(wrongFile.status, 0);
+      assert.strictEqual(scriptFeeds.length, 2, 'TOKENGOTCHI_TOKEN errado não cai no token do arquivo');
+
+      const helper = await runNode([path.join(__dirname, 'ingest-call.js'), 'status'], hookEnv({
+        TOKENGOTCHI_SOURCES: sourcesPath
+      }));
+      assert.strictEqual(helper.status, 0, helper.stderr);
+      assert.deepStrictEqual(JSON.parse(helper.stdout), { via: 'file' });
+    } finally {
+      await new Promise((resolve) => fileServer.close(resolve));
+    }
+  } finally {
+    await new Promise((resolve) => scriptServer.close(resolve));
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+testIngestAuth()
+  .then(() => {
+    console.log(
+      'ok — parsers, leitura incremental, lista de caminhos, consentimento e ingest autenticado conferidos'
+    );
+  })
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

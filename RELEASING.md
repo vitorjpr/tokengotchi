@@ -35,7 +35,7 @@ git push origin v0.3.0
 ```
 
 Pronto. Em torno de 5 minutos o release aparece publicado em
-[Releases](../../releases), com os 9 arquivos dos três sistemas.
+[Releases](../../releases), com os 12 arquivos dos três sistemas.
 
 ### Acompanhar
 
@@ -53,7 +53,7 @@ curl -s https://api.github.com/repos/vitorjpr/tokengotchi/releases/latest \
       d.tag_name + ' draft=' + d.draft + ' arquivos=' + d.assets.length"
 ```
 
-Tem que dizer `draft=false` e `arquivos=9`.
+Tem que dizer `draft=false` e `arquivos=12`.
 
 ## O que o workflow faz
 
@@ -70,13 +70,24 @@ depende dos três. Se um upload falhar mesmo após as tentativas, o release fica
 como rascunho incompleto e o job vermelho, em vez de virar um release público
 pela metade.
 
-## Os 9 arquivos
+## Os 12 arquivos
 
 | Sistema | Arquivos |
 | --- | --- |
-| macOS | `-universal.dmg`, `-universal-mac.zip` (Intel e Apple Silicon juntos) |
-| Windows | `-Setup-<versão>.exe`, `-win.zip`, `-arm64-win.zip` |
+| macOS | `-arm64.dmg`, `-x64.dmg`, `-arm64-mac.zip`, `-x64-mac.zip` |
+| Windows | `-Setup-<versão>-x64.exe`, `-Setup-<versão>-arm64.exe`, `-win.zip`, `-arm64-win.zip` |
 | Linux | `.AppImage` e `_amd64.deb` (mais as variantes arm64) |
+
+Cada pessoa baixa a arquitetura do próprio computador. O macOS não sai mais
+como um único universal (na v0.4.1 o `.dmg` e o `.zip` tinham 206 MB cada,
+com Intel e Apple Silicon juntos). O instalador do Windows também era um
+arquivo só, de 190 MB, com x64 e arm64 embutidos; agora são dois `.exe`.
+
+O pacote guarda só os idiomas `en-US`, `pt-BR` e `pt-PT` do Electron. O app
+já é português, e o restante dos locales do Chromium não entra. No zip do
+macOS arm64 isso deixa o arquivo em cerca de 108 MB, contra 206 MB do
+universal da v0.4.1. O pacote de um processador só que o instalador do
+Windows embute fica em cerca de 95 MB, contra 190 MB do Setup único.
 
 **Ao adicionar um alvo novo de build**, inclua a extensão em duas listas ou o
 arquivo é descartado em silêncio:

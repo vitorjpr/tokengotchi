@@ -1,9 +1,20 @@
 {
+  "rootAllowlist": [
+    "~/.claude",
+    "~/.codex",
+    "~/.grok",
+    "~/.grok-cli",
+    "~/.config/grok",
+    "~/Library/Application Support/Cursor",
+    "~/AppData/Roaming/Cursor",
+    "~/.config/Cursor"
+  ],
   "sources": [
     {
       "id": "claude-code",
       "label": "Claude Code",
-      "enabled": true,
+      "enabled": false,
+      "consented": false,
       "parser": "claude-code",
       "roots": [
         "~/.claude/projects"
@@ -16,7 +27,8 @@
     {
       "id": "codex",
       "label": "Codex CLI",
-      "enabled": true,
+      "enabled": false,
+      "consented": false,
       "parser": "codex",
       "roots": [
         "~/.codex/sessions"
@@ -29,7 +41,8 @@
     {
       "id": "grok",
       "label": "Grok CLI",
-      "enabled": true,
+      "enabled": false,
+      "consented": false,
       "parser": "generic-usage",
       "roots": [
         "~/.grok",
@@ -45,7 +58,8 @@
     {
       "id": "cursor",
       "label": "Cursor",
-      "enabled": true,
+      "enabled": false,
+      "consented": false,
       "parser": "activity",
       "roots": [
         "~/Library/Application Support/Cursor/User/workspaceStorage",
@@ -66,7 +80,8 @@
   ],
   "ingest": {
     "enabled": true,
-    "port": 4736
+    "port": 4736,
+    "token": ""
   },
   "updates": {
     "enabled": true,

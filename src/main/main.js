@@ -6,7 +6,7 @@ const path = require('path');
 
 const sources = require('./sources');
 const petLib = require('./pet');
-const { startIngest } = require('./ingest');
+const { startIngest, ensureIngestToken } = require('./ingest');
 const updates = require('./updates');
 
 const POLL_MS = 8000;
@@ -51,17 +51,63 @@ function userDataDir() {
   return app.getPath('userData');
 }
 
+function configFile() {
+  return path.join(userDataDir(), 'sources.json');
+}
+
+/** Grava o sources.json só para o usuário: ele passa a guardar o segredo do ingest. */
+function persistUserConfig(target, config) {
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, JSON.stringify(config, null, 2), { mode: 0o600 });
+  try {
+    fs.chmodSync(target, 0o600);
+  } catch {
+    // Alguns sistemas de arquivo ignoram o modo. O segredo continua no arquivo.
+  }
+}
+
 /** Carrega a config do usuário, criando-a a partir do padrão na primeira vez. */
 function loadConfig() {
-  const target = path.join(userDataDir(), 'sources.json');
+  const target = configFile();
   const fallback = path.join(__dirname, '..', '..', 'config', 'default-sources.json');
+  let config;
   try {
-    return JSON.parse(fs.readFileSync(target, 'utf8'));
+    config = JSON.parse(fs.readFileSync(target, 'utf8'));
   } catch {
-    const defaults = JSON.parse(fs.readFileSync(fallback, 'utf8'));
-    fs.mkdirSync(userDataDir(), { recursive: true });
-    fs.writeFileSync(target, JSON.stringify(defaults, null, 2));
-    return defaults;
+    config = JSON.parse(fs.readFileSync(fallback, 'utf8'));
+    persistUserConfig(target, config);
+  }
+  // Token vazio ou ausente é gerado aqui. Sem ele o servidor local recusa tudo.
+  try {
+    ensureIngestToken(config, () => persistUserConfig(target, config));
+  } catch (err) {
+    console.error('[tokengotchi] não consegui gravar o segredo do ingest:', err.message);
+  }
+  // Quem já tinha o arquivo aberto para o grupo passa a ficar só com o dono,
+  // porque agora há um segredo dentro.
+  try {
+    if (fs.existsSync(target)) fs.chmodSync(target, 0o600);
+  } catch {
+    // Sem permissão para apertar o modo: o app segue, o arquivo continua como estava.
+  }
+  return config;
+}
+
+function saveConfig(next) {
+  const target = configFile();
+  const tmp = `${target}.tmp`;
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(tmp, JSON.stringify(next, null, 2), { mode: 0o600 });
+  try {
+    fs.chmodSync(tmp, 0o600);
+  } catch {
+    // Alguns sistemas de arquivo ignoram o modo. O segredo continua no arquivo.
+  }
+  fs.renameSync(tmp, target);
+  try {
+    fs.chmodSync(target, 0o600);
+  } catch {
+    // O rename já traz o modo do temporário; isto só aperta de novo.
   }
 }
 
@@ -146,12 +192,43 @@ function formatTokens(n) {
   return String(Math.round(n));
 }
 
+function sourceMenuItems() {
+  const items = (config.sources || []).filter((source) => source && source.id);
+  if (!items.length) return [{ label: 'Nenhuma fonte encontrada', enabled: false }];
+  return [
+    { label: 'Ler logs locais', enabled: false },
+    ...items.map((source) => {
+      const scan = lastScan.bySource[source.id];
+      const detail = scan ? ` — ${scan.files} arquivo(s)` : '';
+      return {
+        label: `${source.label || source.id}${detail}`,
+        type: 'checkbox',
+        checked: sources.isSourceActive(source),
+        click: (item) => toggleSource(source.id, item.checked)
+      };
+    })
+  ];
+}
+
+/** Checkbox da bandeja: consentimento por fonte, gravado no sources.json. */
+function toggleSource(id, on) {
+  const prev = JSON.stringify(config);
+  if (!sources.setSourceConsent(config, id, on)) return;
+  try {
+    saveConfig(config);
+  } catch (err) {
+    console.error('[tokengotchi] não consegui gravar o consentimento:', err.message);
+    try {
+      config = JSON.parse(prev);
+    } catch {
+      // mantém a memória se o snapshot também estiver inválido
+    }
+  }
+  scanAndTick(false);
+}
+
 function buildTrayMenu() {
   const snap = petLib.snapshot(pet);
-  const sourceItems = Object.entries(lastScan.bySource).map(([id, data]) => ({
-    label: `${data.label}${data.estimated ? ' (estimado)' : ''} — ${data.files} arquivo(s)`,
-    enabled: false
-  }));
 
   return Menu.buildFromTemplate([
     { label: `${snap.name} · ${snap.stageLabel} · ${snap.mood}`, enabled: false },
@@ -166,7 +243,7 @@ function buildTrayMenu() {
     },
     { label: `Hoje: ${formatTokens(snap.tokensToday)} tokens`, enabled: false },
     { type: 'separator' },
-    ...(sourceItems.length ? sourceItems : [{ label: 'Nenhuma fonte encontrada', enabled: false }]),
+    ...sourceMenuItems(),
     { type: 'separator' },
     {
       label: win && win.isVisible() ? 'Esconder bichinho' : 'Mostrar bichinho',
@@ -353,7 +430,11 @@ function scanAndTick(firstRun = false) {
   const now = Date.now();
   let harvest = { calories: 0, tokens: 0, bySource: {} };
   try {
-    harvest = sources.collect(config, cursors, { now, firstRun });
+    // baselineNewSources: a primeira varredura depois do consentimento só
+    // marca offset. Sem isto, ligar a fonte creditaria o histórico inteiro.
+    // A lista de caminhos permitidos é a do código; não repassamos
+    // config.rootAllowlist como opção, senão o JSON poderia alargá-la.
+    harvest = sources.collect(config, cursors, { now, firstRun, baselineNewSources: true });
   } catch (err) {
     console.error('[tokengotchi] falha ao varrer fontes:', err.message);
   }
@@ -424,6 +505,7 @@ app.whenReady().then(() => {
   if (config.ingest?.enabled !== false) {
     ingestServer = startIngest({
       port: config.ingest?.port || 4736,
+      token: config.ingest?.token,
       onFeed: feedFromIngest,
       // O mesmo estado que a janela recebe, e não só o do bichinho: sem
       // version/update/pendingVersion aqui, não havia como diagnosticar de

@@ -51,22 +51,37 @@
       "config/**/*",
       "package.json"
     ],
+    "electronLanguages": [
+      "en",
+      "en-US",
+      "en_US",
+      "pt-BR",
+      "pt_BR",
+      "pt-PT",
+      "pt_PT"
+    ],
     "mac": {
       "category": "public.app-category.entertainment",
+      "artifactName": "${productName}-${version}-${arch}-${os}.${ext}",
       "target": [
         {
           "target": "dmg",
           "arch": [
-            "universal"
+            "x64",
+            "arm64"
           ]
         },
         {
           "target": "zip",
           "arch": [
-            "universal"
+            "x64",
+            "arm64"
           ]
         }
       ]
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "icon": "build/icon.png",
     "win": {
@@ -117,7 +132,8 @@
       "allowToChangeInstallationDirectory": false,
       "deleteAppDataOnUninstall": false,
       "shortcutName": "Tokengotchi",
-      "artifactName": "Tokengotchi-Setup-${version}.${ext}"
+      "buildUniversalInstaller": false,
+      "artifactName": "Tokengotchi-Setup-${version}-${arch}.${ext}"
     }
   }
 }

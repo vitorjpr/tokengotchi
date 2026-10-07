@@ -1,3 +1,27 @@
+const macFirstOpen = {
+  en: 'The app is ad-hoc signed and not notarized, so on first launch right-click (or Control-click) the app and choose Open. On macOS Sequoia (15+), go to System Settings → Privacy & Security → Open Anyway.',
+  pt: 'O app é assinado ad-hoc e não é notarizado. Na primeira abertura, clique com o botão direito (ou Control-clique) no app e escolha Abrir. No macOS Sequoia (15+), vá em Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim.',
+};
+
+const winZip = {
+  en: 'A .zip. Extract it and run Tokengotchi.exe. The app is unsigned, so Windows SmartScreen may warn: click "More info", then "Run anyway".',
+  pt: 'É um arquivo .zip. Extraia e execute Tokengotchi.exe. O app não é assinado, então no SmartScreen clique em "Mais informações" → "Executar assim mesmo".',
+};
+
+const linuxDeb = {
+  en: 'A .deb package for amd64 and arm64 (Debian/Ubuntu). Install with sudo apt install ./tokengotchi_*.deb',
+  pt: 'Pacote .deb para amd64 e arm64 (Debian/Ubuntu). Instale com sudo apt install ./tokengotchi_*.deb',
+};
+
+const linuxDebArch = {
+  en: 'A .deb package (Debian/Ubuntu). Install with sudo apt install ./tokengotchi_*.deb',
+  pt: 'Pacote .deb (Debian/Ubuntu). Instale com sudo apt install ./tokengotchi_*.deb',
+};
+
+function withNote(lead, note) {
+  return `${lead} ${note}`;
+}
+
 export const copy = {
   en: {
     htmlLang: 'en',
@@ -66,9 +90,9 @@ export const copy = {
     dlTitleHtml: 'Your next project<br>could use some company.',
     dlIntro: 'A tiny desktop companion for the things you’re making next.',
     osLabel: 'Choose your operating system',
-    detailMac: 'For Apple Silicon and Intel Macs.',
-    noscriptSoon: 'Public downloads are coming soon. Check back for macOS, Windows, and Linux installers.',
-    noscriptLead: 'Installers for macOS, Windows, and Linux:',
+    detailMac: withNote('For Apple Silicon and Intel Macs.', macFirstOpen.en),
+    noscriptSoon: 'Public downloads are coming soon. Check back for macOS, Windows, and Linux.',
+    noscriptLead: 'Downloads for macOS, Windows, and Linux:',
     footerTag: 'Built with tokens. Raised with love.',
     footerCopy: 'Tokengotchi',
     ui: {
@@ -76,17 +100,18 @@ export const copy = {
       heroCtaFor: 'Get Tokengotchi for {os}',
       comingSoon: 'Public downloads for {os} are coming soon.',
       download: 'Download {label}',
+      checksum: 'Verify downloads (SHA256SUMS)',
       os: { macos: 'macOS', windows: 'Windows', linux: 'Linux' },
       detail: {
-        macos: 'For Apple Silicon and Intel Macs.',
-        macos_arm64: 'For Apple Silicon.',
-        macos_x64: 'For Intel Macs.',
-        windows: 'Choose the installer for your Windows PC.',
-        windows_arm64: 'For Windows on ARM.',
-        windows_x64: 'For 64-bit Windows.',
-        linux: 'AppImage and Debian packages, when available.',
-        linux_arm64: 'For ARM Linux.',
-        linux_x64: 'For 64-bit Linux.',
+        macos: withNote('For Apple Silicon and Intel Macs.', macFirstOpen.en),
+        macos_arm64: withNote('For Apple Silicon.', macFirstOpen.en),
+        macos_x64: withNote('For Intel Macs.', macFirstOpen.en),
+        windows: winZip.en,
+        windows_arm64: withNote('For Windows on ARM.', winZip.en),
+        windows_x64: withNote('For 64-bit Windows.', winZip.en),
+        linux: linuxDeb.en,
+        linux_arm64: withNote('For ARM Linux.', linuxDebArch.en),
+        linux_x64: withNote('For 64-bit Linux.', linuxDebArch.en),
       },
     },
   },
@@ -157,9 +182,9 @@ export const copy = {
     dlTitleHtml: 'Seu próximo projeto<br>bem que queria companhia.',
     dlIntro: 'Um companheirinho de tela para o que você vai criar.',
     osLabel: 'Escolha o sistema',
-    detailMac: 'Para Mac com Apple Silicon e Intel.',
-    noscriptSoon: 'Os downloads públicos chegam em breve. Volte para ver os instaladores de macOS, Windows e Linux.',
-    noscriptLead: 'Instaladores para macOS, Windows e Linux:',
+    detailMac: withNote('Para Mac com Apple Silicon e Intel.', macFirstOpen.pt),
+    noscriptSoon: 'Os downloads públicos chegam em breve. Volte para ver macOS, Windows e Linux.',
+    noscriptLead: 'Downloads para macOS, Windows e Linux:',
     footerTag: 'Feito com tokens. Criado com carinho.',
     footerCopy: 'Tokengotchi',
     ui: {
@@ -167,17 +192,18 @@ export const copy = {
       heroCtaFor: 'Baixar o Tokengotchi para {os}',
       comingSoon: 'Os downloads públicos para {os} chegam em breve.',
       download: 'Baixar {label}',
+      checksum: 'Conferir os downloads (SHA256SUMS)',
       os: { macos: 'macOS', windows: 'Windows', linux: 'Linux' },
       detail: {
-        macos: 'Para Mac com Apple Silicon e Intel.',
-        macos_arm64: 'Para Mac com Apple Silicon.',
-        macos_x64: 'Para Mac com Intel.',
-        windows: 'O instalador para o seu Windows.',
-        windows_arm64: 'Para Windows em ARM.',
-        windows_x64: 'Para Windows de 64 bits.',
-        linux: 'AppImage e pacote Debian, quando houver.',
-        linux_arm64: 'Para Linux em ARM.',
-        linux_x64: 'Para Linux de 64 bits.',
+        macos: withNote('Para Mac com Apple Silicon e Intel.', macFirstOpen.pt),
+        macos_arm64: withNote('Para Mac com Apple Silicon.', macFirstOpen.pt),
+        macos_x64: withNote('Para Mac com Intel.', macFirstOpen.pt),
+        windows: winZip.pt,
+        windows_arm64: withNote('Para Windows em ARM.', winZip.pt),
+        windows_x64: withNote('Para Windows de 64 bits.', winZip.pt),
+        linux: linuxDeb.pt,
+        linux_arm64: withNote('Para Linux em ARM.', linuxDebArch.pt),
+        linux_x64: withNote('Para Linux de 64 bits.', linuxDebArch.pt),
       },
     },
   },

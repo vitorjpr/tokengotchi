@@ -1,4 +1,4 @@
-import { archFromSignals, detectDesktopOs, selectDownloads } from './downloads-logic.mjs';
+import { archFromSignals, checksumUrl, detectDesktopOs, selectDownloads } from './downloads-logic.mjs';
 import { LOCALE_COOKIE } from './negotiate.mjs';
 
 const ui = JSON.parse(document.querySelector('#ui-copy').textContent);
@@ -71,12 +71,30 @@ document.querySelectorAll('[data-os]').forEach((button) => {
 document.querySelector('#year').textContent = String(new Date().getFullYear());
 render();
 
+function renderChecksum() {
+  const slot = document.querySelector('#download-verify');
+  if (!slot) return;
+  const url = checksumUrl(downloads);
+  slot.replaceChildren();
+  if (!url || !ui.checksum) return;
+  const link = document.createElement('a');
+  link.href = url;
+  link.textContent = ui.checksum;
+  const line = document.createElement('p');
+  line.className = 'download-verify';
+  line.append(link);
+  slot.append(line);
+}
+
 async function loadDownloads() {
   try {
     const response = await fetch('/downloads.json');
-    if (response.ok) downloads = (await response.json()) || {};
+    if (response.ok) {
+      downloads = (await response.json()) || {};
+      renderChecksum();
+    }
   } catch {
-    /* Coming soon stays available offline. */
+    /* Coming soon stays available offline. The built-in checksum link stays. */
   }
 }
 

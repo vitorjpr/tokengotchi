@@ -55,7 +55,50 @@ export function validateManifest(manifest) {
 }
 
 /**
- * Pick installers for one OS.
+ * Release base for a GitHub download asset, or null when the URL is not one.
+ * `https://github.com/<owner>/<repo>/releases/download/<tag>/<file>`
+ * → `https://github.com/<owner>/<repo>/releases/download/<tag>`
+ */
+export function githubReleaseBase(url) {
+  if (!isPublicHttps(url)) return null;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  if (parsed.hostname !== 'github.com' || parsed.port || parsed.search || parsed.hash) return null;
+  const parts = parsed.pathname.split('/').filter(Boolean);
+  if (parts.length !== 6) return null;
+  const [owner, repo, releases, download, tag, file] = parts;
+  if (releases !== 'releases' || download !== 'download') return null;
+  const segment = /^[A-Za-z0-9._-]+$/;
+  if (!segment.test(owner) || !segment.test(repo) || !segment.test(tag) || !segment.test(file)) return null;
+  if (file === '.' || file === '..') return null;
+  return `${parsed.origin}/${owner}/${repo}/releases/download/${tag}`;
+}
+
+/**
+ * SHA256SUMS URL for the release that published every asset, or null.
+ * Derived only when every manifest URL shares one GitHub release base.
+ */
+export function checksumUrl(manifest) {
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) return null;
+  const bases = new Set();
+  for (const os of ['macos', 'windows', 'linux']) {
+    if (!Array.isArray(manifest[os])) return null;
+    for (const entry of manifest[os]) {
+      const base = githubReleaseBase(entry?.url);
+      if (!base) return null;
+      bases.add(base);
+    }
+  }
+  if (bases.size !== 1) return null;
+  return `${[...bases][0]}/SHA256SUMS`;
+}
+
+/**
+ * Pick downloads for one OS.
  * `detectedArch` null shows a universal build when one exists, otherwise every arch.
  * A known arch prefers matching files, then a universal build, then every labeled file.
  */

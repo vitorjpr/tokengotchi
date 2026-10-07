@@ -1,7 +1,7 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { copy } from './copy.mjs';
-import { selectDownloads, validateManifest } from './downloads-logic.mjs';
+import { checksumUrl, selectDownloads, validateManifest } from './downloads-logic.mjs';
 
 const root = new URL('./', import.meta.url);
 const output = new URL('./dist/', root);
@@ -16,6 +16,7 @@ const RAW = new Set([
   'dlTitleHtml',
   'noscriptHtml',
   'downloadHtml',
+  'checksumHtml',
   'uiJson',
   'enCurrent',
   'ptCurrent',
@@ -42,6 +43,13 @@ export function renderDownloadResult(locale, manifest) {
     const label = page.ui.download.replaceAll('{label}', entry.label);
     return `<a class="button" href="${escapeHtml(entry.url)}">${escapeHtml(label)}</a>`;
   }).join('');
+}
+
+export function renderChecksum(locale, manifest) {
+  const url = checksumUrl(manifest);
+  if (!url) return '';
+  const label = copy[locale].ui.checksum;
+  return `<p class="download-verify"><a href="${escapeHtml(url)}">${escapeHtml(label)}</a></p>`;
 }
 
 export function renderNoscript(locale, manifest) {
@@ -118,6 +126,7 @@ export async function build() {
       uiJson: JSON.stringify(copy[locale].ui).replaceAll('<', '\\u003c'),
       noscriptHtml: renderNoscript(locale, manifest),
       downloadHtml: renderDownloadResult(locale, manifest),
+      checksumHtml: renderChecksum(locale, manifest),
       enCurrent: locale === 'en' ? ' aria-current="page"' : '',
       ptCurrent: locale === 'pt' ? ' aria-current="page"' : '',
     });

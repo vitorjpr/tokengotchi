@@ -12,6 +12,9 @@ html[data-locale="pt"] .intro{max-width:460px}
 .hero .button{max-width:100%;flex-wrap:wrap;row-gap:8px}
 #download-result .button{gap:14px}
 .noscript-downloads{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;padding:0;margin:12px 0 0;list-style:none}
+.download-detail,.download-verify{max-width:40rem;margin-inline:auto}
+.download-verify{font-size:13px;margin-top:10px}
+.download-verify a{color:var(--lime);text-decoration:underline;text-underline-offset:3px}
 @media(max-width:1000px){html[data-locale="pt"] .hero h1{letter-spacing:-2px}}
 @media(max-width:720px){
   .navigation{height:auto;min-height:74px;padding-block:16px;gap:12px}

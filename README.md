@@ -13,7 +13,8 @@ mas vivo. Se você sumir de vez, aí morre, e é só chocar um ovo novo e começ
 novo.
 
 Ele conta sozinho: não precisa apontar nada, nem digitar quanto você usou. O app lê
-o que as ferramentas de IA já anotam no seu próprio computador. **Nada é enviado
+o que as ferramentas de IA já anotam no seu próprio computador — **só depois que
+você autoriza cada uma**, no menu do ícone perto do relógio. **Nada é enviado
 para lugar nenhum** — tudo acontece na sua máquina.
 
 Funciona com **Claude Code**, **Codex CLI**, **Grok CLI** e **Cursor**.
@@ -160,8 +161,8 @@ Também só na primeira vez.
 ### Pronto! E agora?
 
 O bichinho aparece **no canto superior direito da tela** e um ícone dele fica na
-barra do sistema (perto do relógio). Ele já começa a comer sozinho conforme você
-usa suas ferramentas de IA.
+barra do sistema (perto do relógio). No menu desse ícone, em *Ler logs locais*,
+marque as ferramentas que ele pode ler. Antes disso ele não abre esses arquivos.
 
 - **Dar um nome a ele:** clique no nome dele no topo da janelinha, digite e
   aperte `Enter`. Também dá pelo menu do ícone, em *Renomear o bichinho…*.
@@ -285,9 +286,12 @@ mise run doctor         # últimas 48h
 mise run doctor 720     # últimos 30 dias
 ```
 
-Ele lista cada fonte, se o diretório existe, quantos arquivos encontrou e quantos
-tokens conseguiu ler. Se alguma linha vier com `✗`, é só ajustar o caminho na config
-(veja abaixo) — nada quebra por causa disso.
+Ele lista cada fonte, se você já autorizou a leitura, se o diretório existe,
+quantos arquivos encontrou e quantos tokens conseguiu ler. Fonte sem consentimento
+não é aberta. Quem já tinha `"enabled": true` sem o campo `consented` segue
+autorizado. Caminho fora da lista permitida aparece como ignorado. Se alguma
+linha vier com `✗`, dá para ajustar o caminho na config (veja abaixo) — desde que
+continue dentro da pasta daquela ferramenta. Nada quebra por causa disso.
 
 Para gerar um `.app` de verdade: `mise exec -- npm run dist` (usa electron-builder, baixa ~200 MB na primeira vez).
 
@@ -445,8 +449,30 @@ VS Code, do qual o Cursor é um fork. Rode `mise run doctor` no seu sistema para
 confirmar — se vier `✗`, corrija na config e mande um PR.
 
 A leitura é incremental: o app guarda o offset de cada arquivo, então reiniciar não
-faz o bichinho comer duas vezes. E na primeira execução ele só marca a posição atual
-dos logs — ninguém nasce com meses de histórico na barriga.
+faz o bichinho comer duas vezes. Na primeira execução — e na primeira varredura
+depois que você autoriza uma fonte — ele só marca a posição atual dos logs.
+Ninguém nasce com meses de histórico na barriga.
+
+### Privacidade das fontes
+
+Claude Code, Codex, Grok e Cursor nascem **desligados** numa instalação nova
+(`"enabled": false` e `"consented": false`). O checkbox *Ler logs locais* no
+menu da bandeja grava `"consented": true` no `sources.json`. Com
+`"consented": false` o app não abre os arquivos.
+
+Na atualização, um `sources.json` que já tinha `"enabled": true` e **não** tem
+o campo `consented` continua lendo. Esse config antigo vale como consentimento:
+não é preciso marcar de novo na bandeja. Os cursores já gravados seguem de
+onde pararam.
+
+O que fica em disco sobre a leitura é o `cursors.json`: offset, data de
+modificação e totais de tokens já vistos. O texto das conversas não é copiado.
+
+Os `roots` não podem apontar para qualquer pasta. A lista permitida está em
+`BUILTIN_ROOT_ALLOWLIST`, em `src/main/sources.js`, e é repetida em
+`config/default-sources.json`. Um root fora dela — `~/.ssh`, `/etc`, a pasta do
+usuário, um `..` que escape, ou um link saindo da pasta permitida — é ignorado.
+O `rootAllowlist` do seu `sources.json` só pode **apertar** essa lista.
 
 ## Alimentando de fora (qualquer ferramenta)
 
@@ -571,9 +597,16 @@ dados do usuário, que muda conforme o sistema:
 
 O menu da bandeja tem **Abrir pasta de dados**, que leva direto ao lugar certo.
 
-Edite esse arquivo para ligar/desligar fontes, corrigir caminhos ou mudar a porta.
-Junto dele ficam `pet.json` (o bichinho) e `cursors.json` (a posição de leitura dos logs).
-Apagar o `pet.json` é o botão de reset definitivo.
+Edite esse arquivo para corrigir caminhos ou mudar a porta. Para autorizar uma
+fonte à mão, ponha `"consented": true` e `"enabled": true`. Para pausar,
+`"enabled": false` basta — o consentimento continua gravado. Quem atualiza a
+partir de um config só com `"enabled": true` (sem `consented`) não precisa
+marcar a bandeja de novo: essa fonte segue ligada. Raiz fora da lista
+permitida é ignorada; o `mise run doctor` mostra quais.
+
+Junto dele ficam `pet.json` (o bichinho) e `cursors.json` (a posição de leitura dos
+logs — offset e totais, não o texto). Apagar o `pet.json` é o botão de reset
+definitivo.
 
 ## Estrutura
 

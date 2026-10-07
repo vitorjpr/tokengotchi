@@ -51,6 +51,10 @@ function userDataDir() {
   return app.getPath('userData');
 }
 
+function configFile() {
+  return path.join(userDataDir(), 'sources.json');
+}
+
 /** Grava o sources.json só para o usuário: ele passa a guardar o segredo do ingest. */
 function persistUserConfig(target, config) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -64,7 +68,7 @@ function persistUserConfig(target, config) {
 
 /** Carrega a config do usuário, criando-a a partir do padrão na primeira vez. */
 function loadConfig() {
-  const target = path.join(userDataDir(), 'sources.json');
+  const target = configFile();
   const fallback = path.join(__dirname, '..', '..', 'config', 'default-sources.json');
   let config;
   try {
@@ -87,6 +91,24 @@ function loadConfig() {
     // Sem permissão para apertar o modo: o app segue, o arquivo continua como estava.
   }
   return config;
+}
+
+function saveConfig(next) {
+  const target = configFile();
+  const tmp = `${target}.tmp`;
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(tmp, JSON.stringify(next, null, 2), { mode: 0o600 });
+  try {
+    fs.chmodSync(tmp, 0o600);
+  } catch {
+    // Alguns sistemas de arquivo ignoram o modo. O segredo continua no arquivo.
+  }
+  fs.renameSync(tmp, target);
+  try {
+    fs.chmodSync(target, 0o600);
+  } catch {
+    // O rename já traz o modo do temporário; isto só aperta de novo.
+  }
 }
 
 function createWindow() {
@@ -170,12 +192,43 @@ function formatTokens(n) {
   return String(Math.round(n));
 }
 
+function sourceMenuItems() {
+  const items = (config.sources || []).filter((source) => source && source.id);
+  if (!items.length) return [{ label: 'Nenhuma fonte encontrada', enabled: false }];
+  return [
+    { label: 'Ler logs locais', enabled: false },
+    ...items.map((source) => {
+      const scan = lastScan.bySource[source.id];
+      const detail = scan ? ` — ${scan.files} arquivo(s)` : '';
+      return {
+        label: `${source.label || source.id}${detail}`,
+        type: 'checkbox',
+        checked: sources.isSourceActive(source),
+        click: (item) => toggleSource(source.id, item.checked)
+      };
+    })
+  ];
+}
+
+/** Checkbox da bandeja: consentimento por fonte, gravado no sources.json. */
+function toggleSource(id, on) {
+  const prev = JSON.stringify(config);
+  if (!sources.setSourceConsent(config, id, on)) return;
+  try {
+    saveConfig(config);
+  } catch (err) {
+    console.error('[tokengotchi] não consegui gravar o consentimento:', err.message);
+    try {
+      config = JSON.parse(prev);
+    } catch {
+      // mantém a memória se o snapshot também estiver inválido
+    }
+  }
+  scanAndTick(false);
+}
+
 function buildTrayMenu() {
   const snap = petLib.snapshot(pet);
-  const sourceItems = Object.entries(lastScan.bySource).map(([id, data]) => ({
-    label: `${data.label}${data.estimated ? ' (estimado)' : ''} — ${data.files} arquivo(s)`,
-    enabled: false
-  }));
 
   return Menu.buildFromTemplate([
     { label: `${snap.name} · ${snap.stageLabel} · ${snap.mood}`, enabled: false },
@@ -190,7 +243,7 @@ function buildTrayMenu() {
     },
     { label: `Hoje: ${formatTokens(snap.tokensToday)} tokens`, enabled: false },
     { type: 'separator' },
-    ...(sourceItems.length ? sourceItems : [{ label: 'Nenhuma fonte encontrada', enabled: false }]),
+    ...sourceMenuItems(),
     { type: 'separator' },
     {
       label: win && win.isVisible() ? 'Esconder bichinho' : 'Mostrar bichinho',
@@ -377,7 +430,11 @@ function scanAndTick(firstRun = false) {
   const now = Date.now();
   let harvest = { calories: 0, tokens: 0, bySource: {} };
   try {
-    harvest = sources.collect(config, cursors, { now, firstRun });
+    // baselineNewSources: a primeira varredura depois do consentimento só
+    // marca offset. Sem isto, ligar a fonte creditaria o histórico inteiro.
+    // A lista de caminhos permitidos é a do código; não repassamos
+    // config.rootAllowlist como opção, senão o JSON poderia alargá-la.
+    harvest = sources.collect(config, cursors, { now, firstRun, baselineNewSources: true });
   } catch (err) {
     console.error('[tokengotchi] falha ao varrer fontes:', err.message);
   }

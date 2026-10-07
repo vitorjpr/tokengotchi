@@ -41,22 +41,29 @@ console.log(`\nTokengotchi · diagnóstico das fontes`);
 console.log(`config: ${file}`);
 console.log(`janela: últimas ${HOURS}h\n`);
 
+const allowlist = sources.effectiveAllowlist(config);
+
 for (const source of config.sources || []) {
-  const status = source.enabled ? '' : ' (desligada)';
+  const active = sources.isSourceActive(source);
+  const status = active ? '' : source.consented === true ? ' (desligada)' : ' (sem consentimento)';
   console.log(`── ${source.label}${status}`);
 
   for (const root of source.roots || []) {
+    if (!sources.isAllowedRoot(root, allowlist)) {
+      console.log(`   · ${root} (ignorada: fora da lista de caminhos)`);
+      continue;
+    }
     const expanded = sources.expandHome(root);
     const exists = fs.existsSync(expanded);
     console.log(`   ${exists ? '✓' : '✗'} ${root}`);
   }
 
-  if (!source.enabled) {
+  if (!active) {
     console.log('');
     continue;
   }
 
-  const files = sources.listFiles(source);
+  const files = sources.listFiles(source, { allowlist });
   const recent = files.filter((f) => {
     try {
       return now - fs.statSync(f).mtimeMs < WINDOW_MS;

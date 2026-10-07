@@ -18,6 +18,16 @@ const ingest = require('../src/main/ingest');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tokengotchi-test-'));
 const HOUR = 3_600_000;
 
+// Os fixtures vivem no tmp, fora da política embutida. O override é opção de
+// chamada, não chave do JSON — o app de verdade não passa isso.
+function scan(list, cursorState, extra = {}) {
+  return sources.collect({ sources: list }, cursorState, {
+    rootAllowlist: [tmp],
+    now: Date.now(),
+    ...extra
+  });
+}
+
 // --- parser do Claude Code ---
 const ccDir = path.join(tmp, 'claude', 'projects', 'demo');
 fs.mkdirSync(ccDir, { recursive: true });
@@ -45,6 +55,7 @@ const ccSource = {
   id: 'cc',
   label: 'Claude Code',
   enabled: true,
+  consented: true,
   parser: 'claude-code',
   roots: [ccDir],
   extensions: ['.jsonl'],
@@ -52,12 +63,12 @@ const ccSource = {
 };
 
 const cursors = {};
-let harvest = sources.collect({ sources: [ccSource] }, cursors, { now: Date.now() });
+let harvest = scan([ccSource], cursors);
 assert.strictEqual(harvest.tokens, 1350, 'soma de tokens do Claude Code');
 assert.strictEqual(harvest.calories, 100 + 50 * 4 + 200 * 1.25 + 1000 * 0.1, 'calorias ponderadas');
 
 // Segunda leitura sem novas linhas não pode contar de novo.
-harvest = sources.collect({ sources: [ccSource] }, cursors, { now: Date.now() });
+harvest = scan([ccSource], cursors);
 assert.strictEqual(harvest.tokens, 0, 'leitura incremental não repete');
 
 // Append é detectado.
@@ -65,7 +76,7 @@ fs.appendFileSync(
   ccFile,
   JSON.stringify({ type: 'assistant', message: { usage: { output_tokens: 10 } } }) + '\n'
 );
-harvest = sources.collect({ sources: [ccSource] }, cursors, { now: Date.now() });
+harvest = scan([ccSource], cursors);
 assert.strictEqual(harvest.tokens, 10, 'novas linhas são digeridas');
 
 // --- parser do Codex (totais acumulados) ---
@@ -83,16 +94,17 @@ const codexSource = {
   id: 'codex',
   label: 'Codex',
   enabled: true,
+  consented: true,
   parser: 'codex',
   roots: [codexDir],
   extensions: ['.jsonl'],
   maxDepth: 2
 };
 const codexCursors = {};
-harvest = sources.collect({ sources: [codexSource] }, codexCursors, { now: Date.now() });
+harvest = scan([codexSource], codexCursors);
 assert.strictEqual(harvest.tokens, 500, 'primeiro total do Codex');
 fs.appendFileSync(codexFile, codexEvent(1200) + '\n');
-harvest = sources.collect({ sources: [codexSource] }, codexCursors, { now: Date.now() });
+harvest = scan([codexSource], codexCursors);
 assert.strictEqual(harvest.tokens, 700, 'Codex conta apenas o delta do acumulado');
 
 // --- parser do Codex: formato real, com cache embutido no input ---
@@ -140,7 +152,7 @@ fs.writeFileSync(
 
 const codexRealSource = { ...codexSource, id: 'codex-real', roots: [codexRealDir] };
 const codexRealCursors = {};
-harvest = sources.collect({ sources: [codexRealSource] }, codexRealCursors, { now: Date.now() });
+harvest = scan([codexRealSource], codexRealCursors);
 // input líquido = 16526 - 12672 = 3854; cacheRead = 12672; output = 239.
 assert.strictEqual(harvest.usage.input, 3854, 'Codex desconta o cache do input');
 assert.strictEqual(harvest.usage.cacheRead, 12672, 'Codex credita cached_input_tokens como cache read');
@@ -154,7 +166,7 @@ assert.strictEqual(
 
 // O delta acumulado continua valendo no formato real.
 fs.appendFileSync(codexRealFile, codexRealEvent(20000, 15000, 500, 200) + '\n');
-harvest = sources.collect({ sources: [codexRealSource] }, codexRealCursors, { now: Date.now() });
+harvest = scan([codexRealSource], codexRealCursors);
 // novo líquido: input 20000-15000=5000, cacheRead 15000, output 500.
 assert.strictEqual(harvest.usage.input, 5000 - 3854, 'delta do input líquido');
 assert.strictEqual(harvest.usage.cacheRead, 15000 - 12672, 'delta do cache read');
@@ -171,6 +183,7 @@ const actSource = {
   id: 'act',
   label: 'Cursor',
   enabled: true,
+  consented: true,
   parser: 'activity',
   roots: [actDir],
   extensions: ['.json'],
@@ -182,13 +195,13 @@ const actCursors = {};
 const t0 = Date.now();
 
 // Primeira varredura só anota o mtime: sem mtime anterior não há evento.
-harvest = sources.collect({ sources: [actSource] }, actCursors, { now: t0 });
+harvest = scan([actSource], actCursors, { now: t0 });
 assert.strictEqual(harvest.tokens, 0, 'primeira varredura de atividade não credita nada');
 
 // Arquivo mexeu → um evento estimado (70% entrada / 30% saída).
 const touch1 = new Date(t0 + 60_000);
 fs.utimesSync(actFile, touch1, touch1);
-harvest = sources.collect({ sources: [actSource] }, actCursors, { now: t0 + 60_000 });
+harvest = scan([actSource], actCursors, { now: t0 + 60_000 });
 assert.strictEqual(harvest.tokens, 1800, 'atividade detectada vira estimativa de 1800 tokens');
 assert.strictEqual(harvest.usage.input, 1260, 'estimativa é 70% entrada');
 assert.strictEqual(harvest.usage.output, 540, 'estimativa é 30% saída');
@@ -198,25 +211,22 @@ assert.strictEqual(harvest.bySource.act.estimated, true, 'fonte marcada como est
 // Mexeu de novo dentro dos 45s: o limitador tem que segurar.
 const touch2 = new Date(t0 + 70_000);
 fs.utimesSync(actFile, touch2, touch2);
-harvest = sources.collect({ sources: [actSource] }, actCursors, { now: t0 + 70_000 });
+harvest = scan([actSource], actCursors, { now: t0 + 70_000 });
 assert.strictEqual(harvest.tokens, 0, 'evento dentro do intervalo mínimo não conta');
 
 // Passado o intervalo, volta a contar.
 const touch3 = new Date(t0 + 200_000);
 fs.utimesSync(actFile, touch3, touch3);
-harvest = sources.collect({ sources: [actSource] }, actCursors, { now: t0 + 200_000 });
+harvest = scan([actSource], actCursors, { now: t0 + 200_000 });
 assert.strictEqual(harvest.tokens, 1800, 'passado o intervalo mínimo, conta de novo');
 
 // Arquivo parado não gera evento, por mais que o tempo passe.
-harvest = sources.collect({ sources: [actSource] }, actCursors, { now: t0 + 900_000 });
+harvest = scan([actSource], actCursors, { now: t0 + 900_000 });
 assert.strictEqual(harvest.tokens, 0, 'arquivo sem alteração não credita');
 
 // --- primeira execução não engorda com histórico antigo ---
 const freshCursors = {};
-harvest = sources.collect({ sources: [ccSource] }, freshCursors, {
-  now: Date.now(),
-  firstRun: true
-});
+harvest = scan([ccSource], freshCursors, { firstRun: true });
 assert.strictEqual(harvest.tokens, 0, 'primeira execução apenas marca posição');
 
 // --- nome do bichinho ---
@@ -491,6 +501,19 @@ for (const [, channel] of preloadJs.matchAll(/ipcRenderer\.send\('([^']+)'/g)) {
   );
 }
 
+assert.ok(
+  mainJs.includes('setSourceConsent'),
+  'o menu da bandeja grava o consentimento da fonte'
+);
+assert.ok(
+  mainJs.includes('baselineNewSources: true'),
+  'ligar uma fonte nova só marca a posição, sem engolir o histórico'
+);
+assert.ok(
+  !/rootAllowlist:\s*config\.rootAllowlist/.test(mainJs),
+  'o app não repassa o rootAllowlist do JSON como opção que alargaria a política'
+);
+
 // --- regras do bichinho ---
 const now = Date.now();
 let pet = petLib.freshPet(now);
@@ -588,13 +611,196 @@ assert.strictEqual(reloadedEvolution.generation, 3);
 assert.strictEqual(petLib.snapshot(reloadedEvolution, now).stage, 'guerreiro');
 assert.strictEqual(petLib.snapshot(petLib.freshPet(now, 4), now).level, 1);
 
+// --- lista de caminhos e consentimento das fontes de log ---
+const defaults = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '..', 'config', 'default-sources.json'), 'utf8')
+);
+assert.ok(Array.isArray(defaults.rootAllowlist) && defaults.rootAllowlist.length > 0);
+for (const entry of defaults.rootAllowlist) {
+  assert.ok(
+    sources.BUILTIN_ROOT_ALLOWLIST.includes(entry),
+    `rootAllowlist padrão só repete a política do código: ${entry}`
+  );
+}
+for (const source of defaults.sources) {
+  assert.notStrictEqual(source.consented, true, `${source.id} nasce sem consentimento`);
+  assert.strictEqual(sources.isSourceActive(source), false, `${source.id} fica inativa`);
+  for (const root of source.roots) {
+    assert.strictEqual(sources.isAllowedRoot(root), true, `${root} está na política`);
+  }
+}
+
+const widened = sources.effectiveAllowlist({
+  rootAllowlist: ['/etc', '~/.ssh', '~', '/']
+});
+assert.strictEqual(
+  widened.length,
+  sources.BUILTIN_ROOT_ALLOWLIST.length,
+  'lista hostil não alarga a política'
+);
+assert.strictEqual(sources.isAllowedRoot('/etc', widened), false, '/etc continua de fora');
+assert.strictEqual(sources.isAllowedRoot('~/.ssh', widened), false, '~/.ssh continua de fora');
+assert.strictEqual(sources.isAllowedRoot('~', widened), false, 'a home inteira continua de fora');
+assert.strictEqual(
+  sources.isAllowedRoot('~/.claude/projects', widened),
+  true,
+  'a pasta do Claude segue permitida quando a lista do config é inválida'
+);
+
+const narrowed = sources.effectiveAllowlist({ rootAllowlist: ['~/.claude', '/etc'] });
+assert.strictEqual(sources.isAllowedRoot('~/.claude/projects', narrowed), true);
+assert.strictEqual(
+  sources.isAllowedRoot('~/.codex/sessions', narrowed),
+  false,
+  'rootAllowlist do config pode apertar a política'
+);
+assert.strictEqual(sources.isAllowedRoot('/etc', narrowed), false);
+
+const usageLine = (n) =>
+  JSON.stringify({ usage: { input_tokens: n, output_tokens: n } }) + '\n';
+
+const secretDir = path.join(tmp, 'secret-outside');
+fs.mkdirSync(secretDir, { recursive: true });
+fs.writeFileSync(path.join(secretDir, 'leak.jsonl'), usageLine(50));
+
+const hostile = {
+  id: 'hostile',
+  label: 'Hostil',
+  enabled: true,
+  consented: true,
+  parser: 'generic-usage',
+  roots: [
+    secretDir,
+    '/etc',
+    '~/.ssh',
+    '~/.claude/../../.ssh',
+    path.join(secretDir, '..', '..', 'etc'),
+    ''
+  ],
+  extensions: ['.jsonl', '.json'],
+  maxDepth: 4
+};
+const hostileCursors = {};
+harvest = sources.collect({ sources: [hostile] }, hostileCursors, { now: Date.now() });
+assert.strictEqual(harvest.tokens, 0, 'root fora da política não alimenta');
+assert.strictEqual(harvest.bySource.hostile.files, 0, 'root fora da política não é varrido');
+assert.deepStrictEqual(hostileCursors, {}, 'root rejeitado não grava cursor');
+assert.strictEqual(sources.listFiles(hostile).length, 0, 'listFiles ignora roots fora da política');
+
+const quietSource = { ...ccSource, id: 'quiet', consented: false, enabled: true };
+const quietCursors = {};
+harvest = scan([quietSource], quietCursors);
+assert.strictEqual(harvest.tokens, 0, 'consented:false explícito não lê, mesmo com enabled:true');
+assert.strictEqual(harvest.bySource.quiet, undefined, 'fonte sem consentimento nem entra na varredura');
+assert.deepStrictEqual(quietCursors, {}, 'sem consentimento não grava offset');
+
+const legacy = { ...ccSource, id: 'legacy', enabled: true };
+delete legacy.consented;
+assert.strictEqual(legacy.consented, undefined);
+assert.strictEqual(
+  sources.isSourceActive(legacy),
+  true,
+  'enabled:true sem o campo consented conta como consentido'
+);
+assert.strictEqual(
+  sources.isSourceActive({ ...legacy, consented: null }),
+  true,
+  'consented nulo com enabled:true também conta como consentido'
+);
+assert.strictEqual(
+  sources.isSourceActive({ id: 'legacy-off', enabled: false }),
+  false,
+  'enabled:false sem consented continua desligada'
+);
+const legacyCursors = {};
+harvest = scan([legacy], legacyCursors);
+assert.ok(harvest.tokens > 0, 'config antigo com enabled:true continua lendo');
+fs.appendFileSync(
+  ccFile,
+  JSON.stringify({ type: 'assistant', message: { usage: { output_tokens: 4 } } }) + '\n'
+);
+harvest = scan([legacy], legacyCursors);
+assert.strictEqual(harvest.tokens, 4, 'config antigo segue incremental sem novo clique na bandeja');
+
+const paused = { ...ccSource, id: 'paused', consented: true, enabled: false };
+harvest = scan([paused], {});
+assert.strictEqual(harvest.bySource.paused, undefined, 'fonte pausada não é varrida');
+
+const optIn = { sources: [{ id: 'claude-code', enabled: false, consented: false }] };
+assert.strictEqual(sources.setSourceConsent(optIn, 'claude-code', true), true);
+assert.strictEqual(optIn.sources[0].consented, true, 'ligar grava o consentimento');
+assert.strictEqual(optIn.sources[0].enabled, true, 'ligar também habilita');
+assert.strictEqual(sources.isSourceActive(optIn.sources[0]), true);
+sources.setSourceConsent(optIn, 'claude-code', false);
+assert.strictEqual(optIn.sources[0].enabled, false, 'desligar pausa');
+assert.strictEqual(optIn.sources[0].consented, true, 'desligar não apaga o consentimento');
+assert.strictEqual(sources.isSourceActive(optIn.sources[0]), false);
+assert.strictEqual(sources.setSourceConsent(optIn, 'nao-existe', true), false);
+
+const baselineCursors = {};
+const baselineSource = { ...ccSource, id: 'base' };
+harvest = scan([baselineSource], baselineCursors, { baselineNewSources: true });
+assert.strictEqual(harvest.tokens, 0, 'primeira varredura consentida só marca a posição');
+assert.ok(Object.keys(baselineCursors).length > 0, 'o offset fica gravado');
+for (const cursor of Object.values(baselineCursors)) {
+  assert.strictEqual(cursor.lines, undefined, 'cursor não guarda texto de transcript');
+  for (const [key, value] of Object.entries(cursor)) {
+    assert.notStrictEqual(typeof value, 'string', `cursor.${key} não é texto de log`);
+  }
+}
+fs.appendFileSync(
+  ccFile,
+  JSON.stringify({ type: 'assistant', message: { usage: { output_tokens: 7 } } }) + '\n'
+);
+harvest = scan([baselineSource], baselineCursors, { baselineNewSources: true });
+assert.strictEqual(harvest.tokens, 7, 'depois do marco, só a linha nova conta');
+
+const gate = path.join(tmp, 'gate');
+fs.mkdirSync(gate, { recursive: true });
+fs.writeFileSync(path.join(gate, 'ok.jsonl'), usageLine(3));
+const link = path.join(gate, 'alias');
+let canLink = true;
+try {
+  fs.symlinkSync(secretDir, link, process.platform === 'win32' ? 'junction' : 'dir');
+} catch {
+  canLink = false;
+}
+const gateSource = {
+  id: 'gate',
+  label: 'Gate',
+  enabled: true,
+  consented: true,
+  parser: 'generic-usage',
+  roots: [gate],
+  extensions: ['.jsonl'],
+  maxDepth: 3
+};
+const gateFiles = sources.listFiles(gateSource, { rootAllowlist: [gate] });
+assert.ok(gateFiles.some((f) => f.endsWith('ok.jsonl')), 'arquivo real dentro da pasta entra');
+assert.ok(
+  gateFiles.every((f) => !f.includes('leak.jsonl')),
+  'link para fora da pasta não entra na varredura'
+);
+if (canLink) {
+  const escaped = { ...gateSource, id: 'escaped', roots: [link] };
+  assert.strictEqual(
+    sources.listFiles(escaped, { rootAllowlist: [gate] }).length,
+    0,
+    'root que é link para fora da lista é rejeitado'
+  );
+  assert.strictEqual(sources.isAllowedRoot(link, [gate]), false);
+}
+const climbed = { ...gateSource, id: 'climbed', roots: [path.join(gate, '..', 'secret-outside')] };
+assert.strictEqual(
+  sources.listFiles(climbed, { rootAllowlist: [gate] }).length,
+  0,
+  '`..` não escapa da pasta permitida'
+);
+
 fs.rmSync(tmp, { recursive: true, force: true });
 
 // --- segredo do ingest ---
 // O arquivo versionado não pode nascer com uma senha compartilhada.
-const defaults = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '..', 'config', 'default-sources.json'), 'utf8')
-);
 assert.ok(
   !ingest.tokenIsUsable(defaults.ingest && defaults.ingest.token),
   'default-sources.json não pode vir com segredo utilizável'
@@ -659,6 +865,14 @@ const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
 assert.ok(readme.includes('Authorization: Bearer'), 'README documenta o header de autenticação');
 assert.ok(readme.includes('TOKENGOTCHI_TOKEN'), 'README documenta a variável do hook');
 assert.ok(readme.includes('ingest.token'), 'README diz onde mora o segredo');
+assert.ok(
+  readme.includes('não é preciso marcar de novo na bandeja'),
+  'README avisa que config antigo com enabled:true não pede novo opt-in'
+);
+assert.ok(
+  !/mesmo que um config antigo tenha\s*\n?"enabled": true/.test(readme),
+  'README não manda reler a bandeja num config que já estava ligado'
+);
 
 function httpRequest({ port, method, path: reqPath, token, body }) {
   return new Promise((resolve, reject) => {
@@ -1020,7 +1234,9 @@ async function testFeedScript(openPort, openToken) {
 
 testIngestAuth()
   .then(() => {
-    console.log('ok — parsers, leitura incremental, ciclo de vida e ingest autenticado conferidos');
+    console.log(
+      'ok — parsers, leitura incremental, lista de caminhos, consentimento e ingest autenticado conferidos'
+    );
   })
   .catch((err) => {
     console.error(err);

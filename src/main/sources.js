@@ -15,9 +15,105 @@ const WEIGHTS = {
 
 const MAX_CHUNK_BYTES = 8 * 1024 * 1024; // no máximo 8 MB por arquivo por varredura
 
+/**
+ * Pastas de agentes que o app pode varrer. A política mora no código: o
+ * `rootAllowlist` do sources.json só pode apertar esta lista, nunca apontar
+ * o app para `~/.ssh`, `/etc` ou o diretório do usuário.
+ */
+const BUILTIN_ROOT_ALLOWLIST = [
+  '~/.claude',
+  '~/.codex',
+  '~/.grok',
+  '~/.grok-cli',
+  '~/.config/grok',
+  '~/Library/Application Support/Cursor',
+  '~/AppData/Roaming/Cursor',
+  '~/.config/Cursor'
+];
+
 function expandHome(p) {
-  if (p.startsWith('~')) return path.join(os.homedir(), p.slice(1));
+  if (typeof p !== 'string') return '';
+  if (p === '~') return os.homedir();
+  if (p.startsWith('~/') || p.startsWith('~\\')) return path.join(os.homedir(), p.slice(2));
   return p;
+}
+
+function normalizeAllowEntry(entry) {
+  if (typeof entry !== 'string' || !entry.trim()) return null;
+  return path.resolve(expandHome(entry.trim()));
+}
+
+/** `child` é o próprio `parent` ou um descendente, sem escapar com `..`. */
+function isWithin(child, parent) {
+  const rel = path.relative(parent, child);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+/**
+ * Symlink e junction (Windows) saem da pasta. `readlink` pega os dois;
+ * `isSymbolicLink()` sozinho deixa junction passar como diretório.
+ */
+const NOT_A_LINK = new Set(['ENOENT', 'ENOTDIR', 'EINVAL', 'UNKNOWN', 'ENOSYS']);
+
+function isTraversalLink(abs) {
+  try {
+    fs.readlinkSync(abs);
+    return true;
+  } catch (err) {
+    if (err && NOT_A_LINK.has(err.code)) return false;
+    return true;
+  }
+}
+
+/** Há um link entre `boundary` e `absPath` (inclusive os dois)? */
+function chainHasLink(boundary, absPath) {
+  const segments = [boundary];
+  const rest = path.relative(boundary, absPath);
+  if (rest) {
+    let cursor = boundary;
+    for (const part of rest.split(path.sep)) {
+      cursor = path.join(cursor, part);
+      segments.push(cursor);
+    }
+  }
+  for (const seg of segments) {
+    if (isTraversalLink(seg)) return true;
+  }
+  return false;
+}
+
+/**
+ * Lista efetiva de prefixos. `options.rootAllowlist` existe só para teste:
+ * o app não repassa o JSON do usuário por aí. Sem essa opção, a lista do
+ * config é intersectada com a política embutida; entrada fora da política
+ * é descartada. Se nada sobrar (typo ou lista hostil), vale a política.
+ */
+function effectiveAllowlist(config, options = {}) {
+  if (Array.isArray(options.rootAllowlist)) {
+    return options.rootAllowlist.map(normalizeAllowEntry).filter(Boolean);
+  }
+  const builtin = BUILTIN_ROOT_ALLOWLIST.map(normalizeAllowEntry).filter(Boolean);
+  const configured = config && config.rootAllowlist;
+  if (!Array.isArray(configured)) return builtin;
+  const narrowed = [];
+  for (const entry of configured) {
+    const resolved = normalizeAllowEntry(entry);
+    if (!resolved) continue;
+    if (builtin.some((prefix) => isWithin(resolved, prefix))) narrowed.push(resolved);
+  }
+  return narrowed.length > 0 ? narrowed : builtin;
+}
+
+function isAllowedRoot(root, allowlist) {
+  if (typeof root !== 'string' || !root.trim()) return false;
+  const abs = path.resolve(expandHome(root.trim()));
+  const prefixes = Array.isArray(allowlist)
+    ? allowlist.map(normalizeAllowEntry).filter(Boolean)
+    : effectiveAllowlist(null);
+  const boundary = prefixes.find((prefix) => isWithin(abs, prefix));
+  if (!boundary) return false;
+  if (chainHasLink(boundary, abs)) return false;
+  return true;
 }
 
 /** Caminha por um diretório coletando arquivos com as extensões pedidas. */
@@ -31,7 +127,12 @@ function walk(root, extensions, maxDepth, out = [], depth = 0) {
   for (const entry of entries) {
     if (entry.name.startsWith('.') && entry.name !== '.claude') continue;
     const full = path.join(root, entry.name);
+    // Não segue link: um alias dentro da pasta permitida não pode abrir
+    // outro canto do disco. Junction no Windows aparece como diretório,
+    // então diretório também passa pelo readlink.
+    if (entry.isSymbolicLink()) continue;
     if (entry.isDirectory()) {
+      if (isTraversalLink(full)) continue;
       if (depth < maxDepth) walk(full, extensions, maxDepth, out, depth + 1);
     } else if (entry.isFile()) {
       if (extensions.some((ext) => entry.name.endsWith(ext))) out.push(full);
@@ -40,11 +141,21 @@ function walk(root, extensions, maxDepth, out = [], depth = 0) {
   return out;
 }
 
-function listFiles(source) {
+function listFiles(source, options = {}) {
+  const allowlist = Array.isArray(options.allowlist)
+    ? options.allowlist
+    : effectiveAllowlist(options.config || null, options);
   const files = [];
   for (const root of source.roots || []) {
-    const expanded = expandHome(root);
-    if (!fs.existsSync(expanded)) continue;
+    if (!isAllowedRoot(root, allowlist)) continue;
+    const expanded = path.resolve(expandHome(root));
+    let st;
+    try {
+      st = fs.lstatSync(expanded);
+    } catch {
+      continue;
+    }
+    if (!st.isDirectory() || st.isSymbolicLink() || isTraversalLink(expanded)) continue;
     walk(expanded, source.extensions || ['.jsonl'], source.maxDepth ?? 4, files);
   }
   return files;
@@ -250,8 +361,8 @@ const parsers = {
  * Fontes sem log de tokens (Cursor). Detecta atividade pelo mtime dos arquivos
  * de estado e credita uma estimativa fixa por evento.
  */
-function collectActivity(source, cursorState, now) {
-  const files = listFiles(source);
+function collectActivity(source, cursorState, now, allowlist) {
+  const files = listFiles(source, { allowlist });
   const perEvent = source.estimatedTokensPerEvent ?? 1800;
   const minInterval = (source.minEventIntervalSeconds ?? 45) * 1000;
   const usage = emptyUsage();
@@ -282,8 +393,8 @@ function collectActivity(source, cursorState, now) {
   return { usage, files: files.length, events, estimated: true };
 }
 
-function collectParsed(source, cursorState, now) {
-  const files = listFiles(source);
+function collectParsed(source, cursorState, now, allowlist) {
+  const files = listFiles(source, { allowlist });
   const usage = emptyUsage();
   let touched = 0;
 
@@ -311,25 +422,63 @@ function collectParsed(source, cursorState, now) {
 }
 
 /**
+ * Fonte de log local só roda com consentimento e sem `enabled: false`.
+ * `consented: true` é o opt-in da bandeja. Config antigo que já lia logs
+ * (`enabled: true` e `consented` ausente ou indefinido) continua valendo:
+ * a atualização não pede outro clique. `consented: false` explícito fica
+ * parado, e a instalação nova nasce com os dois campos false.
+ */
+function isSourceActive(source) {
+  if (!source || source.enabled === false) return false;
+  if (source.consented === true) return true;
+  return source.consented == null && source.enabled === true;
+}
+
+/**
+ * Liga ou pausa uma fonte. Ligar grava o consentimento; desligar só pausa,
+ * para o próximo clique não reler o histórico como se fosse a primeira vez.
+ */
+function setSourceConsent(config, sourceId, on) {
+  const source = (config?.sources || []).find((s) => s && s.id === sourceId);
+  if (!source) return false;
+  if (on) {
+    source.consented = true;
+    source.enabled = true;
+  } else {
+    source.enabled = false;
+  }
+  return true;
+}
+
+function sourceHasCursor(source, cursorState) {
+  const prefix = `${source.id}:`;
+  return Object.keys(cursorState).some((key) => key.startsWith(prefix));
+}
+
+/**
  * Varre todas as fontes ativas e devolve o que foi consumido desde a última chamada.
- * cursorState é mutado no lugar (e persistido pelo chamador).
+ * cursorState é mutado no lugar (e persistido pelo chamador). Só guarda offset,
+ * mtime e totais — nunca o texto das linhas.
  */
 function collect(config, cursorState, options = {}) {
   const now = options.now || Date.now();
   const firstRun = options.firstRun === true;
+  const allowlist = effectiveAllowlist(config, options);
   const bySource = {};
   const total = emptyUsage();
 
   for (const source of config.sources || []) {
-    if (!source.enabled) continue;
+    if (!isSourceActive(source)) continue;
+    // Fonte recém-consentida ainda não tem cursor: marca a posição e não
+    // credita o histórico. O mesmo vale para a primeira execução do app.
+    const baseline =
+      firstRun || (options.baselineNewSources === true && !sourceHasCursor(source, cursorState));
     const result =
       source.parser === 'activity'
-        ? collectActivity(source, cursorState, now)
-        : collectParsed(source, cursorState, now);
+        ? collectActivity(source, cursorState, now, allowlist)
+        : collectParsed(source, cursorState, now, allowlist);
 
-    // Na primeira execução só marcamos a posição atual dos arquivos:
-    // ninguém merece nascer com meses de histórico na barriga.
-    const usage = firstRun ? emptyUsage() : result.usage;
+    const usage = baseline ? emptyUsage() : result.usage;
 
     bySource[source.id] = {
       label: source.label,
@@ -362,5 +511,10 @@ module.exports = {
   totalTokens,
   normalizeUsage,
   normalizeCodexUsage,
-  WEIGHTS
+  WEIGHTS,
+  BUILTIN_ROOT_ALLOWLIST,
+  effectiveAllowlist,
+  isAllowedRoot,
+  isSourceActive,
+  setSourceConsent
 };

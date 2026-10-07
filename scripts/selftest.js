@@ -4,13 +4,16 @@
 /** Teste rápido das regras do bichinho e dos parsers. node scripts/selftest.js */
 
 const assert = require('assert');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
+const http = require('http');
 const os = require('os');
 const path = require('path');
 
 const sources = require('../src/main/sources');
 const petLib = require('../src/main/pet');
 const updates = require('../src/main/updates');
+const ingest = require('../src/main/ingest');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tokengotchi-test-'));
 const HOUR = 3_600_000;
@@ -586,4 +589,440 @@ assert.strictEqual(petLib.snapshot(reloadedEvolution, now).stage, 'guerreiro');
 assert.strictEqual(petLib.snapshot(petLib.freshPet(now, 4), now).level, 1);
 
 fs.rmSync(tmp, { recursive: true, force: true });
-console.log('ok — parsers, leitura incremental e ciclo de vida conferidos');
+
+// --- segredo do ingest ---
+// O arquivo versionado não pode nascer com uma senha compartilhada.
+const defaults = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '..', 'config', 'default-sources.json'), 'utf8')
+);
+assert.ok(
+  !ingest.tokenIsUsable(defaults.ingest && defaults.ingest.token),
+  'default-sources.json não pode vir com segredo utilizável'
+);
+
+const kept = { ingest: { token: 'a'.repeat(32), port: 4736 } };
+let persisted = 0;
+assert.strictEqual(
+  ingest.ensureIngestToken(kept, () => {
+    persisted += 1;
+  }),
+  'a'.repeat(32),
+  'segredo já utilizável é preservado'
+);
+assert.strictEqual(persisted, 0, 'segredo existente não regrava a config');
+
+const fresh = { ingest: { token: '', port: 9 } };
+const generated = ingest.ensureIngestToken(fresh, () => {
+  persisted += 1;
+});
+assert.ok(ingest.tokenIsUsable(generated), 'token gerado é utilizável');
+assert.strictEqual(generated, fresh.ingest.token, 'token gerado fica na config');
+assert.strictEqual(persisted, 1, 'token novo pede gravação');
+assert.notStrictEqual(generated, 'a'.repeat(32), 'token novo não reaproveita o anterior');
+
+const weird = { ingest: { token: 'abc$(touch/tmp/pwn)-ok' } };
+assert.strictEqual(
+  ingest.ensureIngestToken(weird, () => {
+    persisted += 1;
+  }),
+  weird.ingest.token,
+  'segredo com caracteres de shell, se já for utilizável, não é trocado'
+);
+assert.strictEqual(persisted, 1, 'preservar segredo estranho não regrava');
+
+assert.throws(
+  () =>
+    ingest.ensureIngestToken({ ingest: { token: 'curto' } }, () => {
+      throw new Error('disco');
+    }),
+  /disco/,
+  'falha ao gravar propaga'
+);
+
+const mainJsForIngest = fs.readFileSync(path.join(__dirname, '..', 'src/main/main.js'), 'utf8');
+assert.ok(
+  /ensureIngestToken\(/.test(mainJsForIngest),
+  'main.js precisa gerar o segredo do ingest'
+);
+assert.ok(
+  /token:\s*config\.ingest\?\.token/.test(mainJsForIngest),
+  'o servidor local precisa receber o segredo da config'
+);
+assert.ok(/chmodSync\(target,\s*0o600\)/.test(mainJsForIngest), 'sources.json fica restrito ao usuário');
+
+const feedSh = fs.readFileSync(path.join(__dirname, '..', 'hooks', 'feed.sh'), 'utf8');
+assert.ok(feedSh.includes('json.dumps'), 'feed.sh monta o JSON fora do shell');
+assert.ok(!/curl[\s\S]*\$\{/.test(feedSh), 'feed.sh não interpola dados num comando curl');
+assert.ok(!feedSh.includes('$TOKENGOTCHI_TOKEN'), 'o shell do feed.sh não expande o segredo');
+
+const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+assert.ok(readme.includes('Authorization: Bearer'), 'README documenta o header de autenticação');
+assert.ok(readme.includes('TOKENGOTCHI_TOKEN'), 'README documenta a variável do hook');
+assert.ok(readme.includes('ingest.token'), 'README diz onde mora o segredo');
+
+function httpRequest({ port, method, path: reqPath, token, body }) {
+  return new Promise((resolve, reject) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const req = http.request(
+      { hostname: '127.0.0.1', port, method, path: reqPath, headers },
+      (res) => {
+        let data = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        res.on('end', () => {
+          let parsed = null;
+          try {
+            parsed = JSON.parse(data);
+          } catch {
+            parsed = null;
+          }
+          resolve({ status: res.statusCode, json: parsed, raw: data });
+        });
+      }
+    );
+    req.on('error', reject);
+    if (body != null) req.write(body);
+    req.end();
+  });
+}
+
+function listen(server) {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.once('listening', () => resolve(server.address().port));
+  });
+}
+
+async function testIngestAuth() {
+  const feeds = [];
+  let reveals = 0;
+  let hides = 0;
+  let statuses = 0;
+  const token = 's3cr3t-token-value';
+  const server = ingest.startIngest({
+    port: 0,
+    token,
+    rateLimit: { authenticatedMax: 6, anonymousMax: 5, windowMs: 60_000 },
+    onFeed(payload) {
+      feeds.push(payload);
+      return { ok: true, tokens: 1 };
+    },
+    getStatus() {
+      statuses += 1;
+      return { ok: true, satiety: 10 };
+    },
+    onReveal() {
+      reveals += 1;
+    },
+    onHide() {
+      hides += 1;
+    }
+  });
+
+  try {
+    const port = await listen(server);
+
+    const anon = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/feed',
+      body: JSON.stringify({ source: 'x', output_tokens: 50 })
+    });
+    assert.strictEqual(anon.status, 401, 'POST /feed sem segredo é 401');
+    assert.strictEqual(feeds.length, 0, 'POST /feed sem segredo não alimenta');
+
+    const wrong = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/feed',
+      token: 'wrong-token-value',
+      body: JSON.stringify({ source: 'x', output_tokens: 50 })
+    });
+    assert.strictEqual(wrong.status, 401, 'segredo errado é 401');
+    assert.strictEqual(feeds.length, 0, 'segredo errado não alimenta');
+
+    const showAnon = await httpRequest({ port, method: 'GET', path: '/show' });
+    const hideAnon = await httpRequest({ port, method: 'GET', path: '/hide' });
+    const statusAnon = await httpRequest({ port, method: 'GET', path: '/status' });
+    assert.strictEqual(showAnon.status, 401, '/show sem segredo é 401');
+    assert.strictEqual(hideAnon.status, 401, '/hide sem segredo é 401');
+    assert.strictEqual(statusAnon.status, 401, '/status sem segredo é 401');
+    const flooded = await httpRequest({ port, method: 'GET', path: '/status' });
+    assert.strictEqual(flooded.status, 429, 'rajada anônima passa a receber 429');
+    assert.strictEqual(reveals, 0, '/show sem segredo não revela');
+    assert.strictEqual(hides, 0, '/hide sem segredo não esconde');
+    assert.strictEqual(statuses, 0, '/status sem segredo não lê o estado');
+
+    // O balde anônimo estourou; o autenticado continua valendo.
+    const authed = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/feed?x=1',
+      token,
+      body: JSON.stringify({ source: 'cursor', label: 'Cursor', input_tokens: 800, output_tokens: 1200 })
+    });
+    assert.strictEqual(authed.status, 200, 'POST /feed com segredo é aceito');
+    assert.deepStrictEqual(feeds[0], {
+      source: 'cursor',
+      label: 'Cursor',
+      input_tokens: 800,
+      output_tokens: 1200
+    });
+
+    const show = await httpRequest({ port, method: 'GET', path: '/show', token });
+    const hide = await httpRequest({ port, method: 'GET', path: '/hide', token });
+    const status = await httpRequest({ port, method: 'GET', path: '/status', token });
+    assert.strictEqual(show.status, 200);
+    assert.strictEqual(show.json.visible, true);
+    assert.strictEqual(reveals, 1);
+    assert.strictEqual(hide.status, 200);
+    assert.strictEqual(hide.json.visible, false);
+    assert.strictEqual(hides, 1);
+    assert.strictEqual(status.status, 200);
+    assert.strictEqual(status.json.satiety, 10);
+    assert.strictEqual(statuses, 1);
+
+    const huge = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/feed',
+      token,
+      body: JSON.stringify({ output_tokens: ingest.MAX_FEED_TOKENS + 1 })
+    });
+    assert.strictEqual(huge.status, 400, 'contagem absurda é recusada');
+    assert.strictEqual(feeds.length, 1, 'contagem absurda não alimenta');
+
+    const badJson = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/feed',
+      token,
+      body: '{nao'
+    });
+    assert.strictEqual(badJson.status, 400, 'JSON inválido continua 400');
+
+    const limited = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/feed',
+      token,
+      body: JSON.stringify({ output_tokens: 1 })
+    });
+    assert.strictEqual(limited.status, 429, 'cota autenticada estourada é 429');
+    assert.strictEqual(feeds.length, 1, '429 autenticado não alimenta');
+
+    const closed = ingest.startIngest({
+      port: 0,
+      token: '',
+      onFeed() {
+        feeds.push({ leaked: true });
+        return { ok: true };
+      },
+      getStatus() {
+        return { secret: true };
+      }
+    });
+    try {
+      const closedPort = await listen(closed);
+      const blocked = await httpRequest({
+        port: closedPort,
+        method: 'POST',
+        path: '/feed',
+        body: JSON.stringify({ output_tokens: 10 })
+      });
+      assert.strictEqual(blocked.status, 401, 'sem segredo configurado o /feed fica fechado');
+      assert.ok(!feeds.some((item) => item.leaked), 'servidor sem segredo não alimenta');
+    } finally {
+      await new Promise((resolve) => closed.close(resolve));
+    }
+
+    await testFeedScript(port, token);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+}
+
+function hookEnv(extra) {
+  const env = { ...process.env };
+  delete env.TOKENGOTCHI_TOKEN;
+  delete env.TOKENGOTCHI_PORT;
+  delete env.TOKENGOTCHI_SOURCES;
+  return { ...env, ...extra };
+}
+
+function runFeed(args, env) {
+  // spawn, não spawnSync: o servidor do teste vive neste processo, e um
+  // spawnSync travaria o event loop enquanto o hook espera a resposta.
+  return new Promise((resolve) => {
+    const child = spawn('bash', [path.join(__dirname, '..', 'hooks', 'feed.sh'), ...args], { env });
+    let stderr = '';
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('error', (err) => resolve({ status: 1, stderr: err.message }));
+    child.on('close', (status) => resolve({ status, stderr }));
+  });
+}
+
+function runNode(args, env) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, args, { env });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('error', (err) => resolve({ status: 1, stdout, stderr: err.message }));
+    child.on('close', (status) => resolve({ status, stdout, stderr }));
+  });
+}
+
+async function testFeedScript(openPort, openToken) {
+  if (process.platform === 'win32') {
+    const bash = spawnSync('bash', ['-c', 'command -v python3'], { encoding: 'utf8' });
+    if (bash.status !== 0) return;
+  } else {
+    const bash = spawnSync('bash', ['-c', 'command -v python3'], { encoding: 'utf8' });
+    assert.strictEqual(bash.status, 0, 'python3 é necessário para testar hooks/feed.sh');
+  }
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tokengotchi-hook-'));
+  const marker = path.join(dir, 'pwned');
+  const scriptFeeds = [];
+  const scriptServer = ingest.startIngest({
+    port: 0,
+    token: openToken,
+    onFeed(payload) {
+      scriptFeeds.push(payload);
+      return { ok: true };
+    },
+    getStatus() {
+      return { ok: true };
+    }
+  });
+
+  try {
+    const port = await listen(scriptServer);
+    assert.notStrictEqual(port, openPort);
+
+    const injected = `$(touch ${marker})`;
+    const injection = await runFeed([injected, '10', '20'], hookEnv({
+      TOKENGOTCHI_PORT: String(port),
+      TOKENGOTCHI_TOKEN: openToken
+    }));
+    assert.strictEqual(injection.status, 0, 'argumento hostil não faz o hook falhar');
+    assert.ok(!fs.existsSync(marker), 'feed.sh não executa substituição de comando no nome da fonte');
+    assert.strictEqual(scriptFeeds.length, 0, 'fonte hostil não chega no /feed');
+
+    const breakout = await runFeed(['x","output_tokens":999999,"y":"', '1', '2'], hookEnv({
+      TOKENGOTCHI_PORT: String(port),
+      TOKENGOTCHI_TOKEN: openToken
+    }));
+    assert.strictEqual(breakout.status, 0);
+    assert.strictEqual(scriptFeeds.length, 0, 'aspas no nome da fonte não reescrevem o JSON');
+
+    const dirtyCount = await runFeed(['cursor', '1;touch ' + marker, '2'], hookEnv({
+      TOKENGOTCHI_PORT: String(port),
+      TOKENGOTCHI_TOKEN: openToken
+    }));
+    assert.strictEqual(dirtyCount.status, 0);
+    assert.ok(!fs.existsSync(marker), 'contagem hostil não vira comando');
+    assert.strictEqual(scriptFeeds.length, 0, 'contagem hostil não chega no /feed');
+
+    // Sem espaço: o segredo precisa ser utilizável no header. Se o shell
+    // expandir $(...), `touch<arquivo` cria o marcador mesmo assim.
+    const nastyToken = `abc$(touch<${marker})zzzz`;
+    const nastyServer = ingest.startIngest({
+      port: 0,
+      token: nastyToken,
+      onFeed(payload) {
+        scriptFeeds.push(payload);
+        return { ok: true };
+      },
+      getStatus() {
+        return { via: 'nasty' };
+      }
+    });
+    try {
+      const nastyPort = await listen(nastyServer);
+      const sent = await runFeed(['cursor', '800', '1200'], hookEnv({
+        TOKENGOTCHI_PORT: String(nastyPort),
+        TOKENGOTCHI_TOKEN: nastyToken
+      }));
+      assert.strictEqual(sent.status, 0);
+      assert.ok(!fs.existsSync(marker), 'segredo com $(...) não é expandido pelo shell');
+      assert.strictEqual(scriptFeeds.length, 1, 'hook autenticado entrega a comida');
+      assert.deepStrictEqual(scriptFeeds[0], {
+        source: 'cursor',
+        label: 'cursor',
+        input_tokens: 800,
+        output_tokens: 1200
+      });
+    } finally {
+      await new Promise((resolve) => nastyServer.close(resolve));
+    }
+
+    const sourcesPath = path.join(dir, 'sources.json');
+    const fileToken = 'token-from-sources-json';
+    const fileServer = ingest.startIngest({
+      port: 0,
+      token: fileToken,
+      onFeed(payload) {
+        scriptFeeds.push(payload);
+        return { ok: true };
+      },
+      getStatus() {
+        return { via: 'file' };
+      }
+    });
+    try {
+      const filePort = await listen(fileServer);
+      fs.writeFileSync(
+        sourcesPath,
+        JSON.stringify({ ingest: { port: filePort, token: fileToken } })
+      );
+      const fromFile = await runFeed(['grok', '3', '4'], hookEnv({ TOKENGOTCHI_SOURCES: sourcesPath }));
+      assert.strictEqual(fromFile.status, 0);
+      assert.strictEqual(scriptFeeds.length, 2, 'hook lê porta e segredo do sources.json');
+      assert.deepStrictEqual(scriptFeeds[1], {
+        source: 'grok',
+        label: 'grok',
+        input_tokens: 3,
+        output_tokens: 4
+      });
+
+      const wrongFile = await runFeed(['grok', '3', '4'], hookEnv({
+        TOKENGOTCHI_SOURCES: sourcesPath,
+        TOKENGOTCHI_TOKEN: 'not-the-file-token'
+      }));
+      assert.strictEqual(wrongFile.status, 0);
+      assert.strictEqual(scriptFeeds.length, 2, 'TOKENGOTCHI_TOKEN errado não cai no token do arquivo');
+
+      const helper = await runNode([path.join(__dirname, 'ingest-call.js'), 'status'], hookEnv({
+        TOKENGOTCHI_SOURCES: sourcesPath
+      }));
+      assert.strictEqual(helper.status, 0, helper.stderr);
+      assert.deepStrictEqual(JSON.parse(helper.stdout), { via: 'file' });
+    } finally {
+      await new Promise((resolve) => fileServer.close(resolve));
+    }
+  } finally {
+    await new Promise((resolve) => scriptServer.close(resolve));
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+testIngestAuth()
+  .then(() => {
+    console.log('ok — parsers, leitura incremental, ciclo de vida e ingest autenticado conferidos');
+  })
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

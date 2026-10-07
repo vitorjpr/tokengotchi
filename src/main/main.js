@@ -6,7 +6,7 @@ const path = require('path');
 
 const sources = require('./sources');
 const petLib = require('./pet');
-const { startIngest } = require('./ingest');
+const { startIngest, ensureIngestToken } = require('./ingest');
 const updates = require('./updates');
 
 const POLL_MS = 8000;
@@ -51,18 +51,42 @@ function userDataDir() {
   return app.getPath('userData');
 }
 
+/** Grava o sources.json só para o usuário: ele passa a guardar o segredo do ingest. */
+function persistUserConfig(target, config) {
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, JSON.stringify(config, null, 2), { mode: 0o600 });
+  try {
+    fs.chmodSync(target, 0o600);
+  } catch {
+    // Alguns sistemas de arquivo ignoram o modo. O segredo continua no arquivo.
+  }
+}
+
 /** Carrega a config do usuário, criando-a a partir do padrão na primeira vez. */
 function loadConfig() {
   const target = path.join(userDataDir(), 'sources.json');
   const fallback = path.join(__dirname, '..', '..', 'config', 'default-sources.json');
+  let config;
   try {
-    return JSON.parse(fs.readFileSync(target, 'utf8'));
+    config = JSON.parse(fs.readFileSync(target, 'utf8'));
   } catch {
-    const defaults = JSON.parse(fs.readFileSync(fallback, 'utf8'));
-    fs.mkdirSync(userDataDir(), { recursive: true });
-    fs.writeFileSync(target, JSON.stringify(defaults, null, 2));
-    return defaults;
+    config = JSON.parse(fs.readFileSync(fallback, 'utf8'));
+    persistUserConfig(target, config);
   }
+  // Token vazio ou ausente é gerado aqui. Sem ele o servidor local recusa tudo.
+  try {
+    ensureIngestToken(config, () => persistUserConfig(target, config));
+  } catch (err) {
+    console.error('[tokengotchi] não consegui gravar o segredo do ingest:', err.message);
+  }
+  // Quem já tinha o arquivo aberto para o grupo passa a ficar só com o dono,
+  // porque agora há um segredo dentro.
+  try {
+    if (fs.existsSync(target)) fs.chmodSync(target, 0o600);
+  } catch {
+    // Sem permissão para apertar o modo: o app segue, o arquivo continua como estava.
+  }
+  return config;
 }
 
 function createWindow() {
@@ -424,6 +448,7 @@ app.whenReady().then(() => {
   if (config.ingest?.enabled !== false) {
     ingestServer = startIngest({
       port: config.ingest?.port || 4736,
+      token: config.ingest?.token,
       onFeed: feedFromIngest,
       // O mesmo estado que a janela recebe, e não só o do bichinho: sem
       // version/update/pendingVersion aqui, não havia como diagnosticar de

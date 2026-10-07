@@ -450,13 +450,41 @@ dos logs — ninguém nasce com meses de histórico na barriga.
 
 ## Alimentando de fora (qualquer ferramenta)
 
-O app sobe um servidor local em `127.0.0.1:4736`:
+O app sobe um servidor local em `127.0.0.1:4736`. Cada rota de controle exige o
+segredo compartilhado de `ingest.token` no header `Authorization: Bearer`.
+Sem esse header, `/feed` não alimenta o bichinho, e `/status`, `/show` e
+`/hide` respondem 401. Na primeira execução o app gera o segredo (64
+caracteres hexadecimais), grava no `sources.json` da pasta de dados e
+restringe o arquivo à leitura do seu usuário. O `token` vazio do
+`config/default-sources.json` é só o espaço reservado — não é uma senha.
 
 ```bash
-curl -s localhost:4736/feed -d '{"source":"grok","input_tokens":800,"output_tokens":1200}'
-curl -s localhost:4736/status
-curl -s localhost:4736/show      # revela a janela
-curl -s localhost:4736/hide      # esconde de novo
+# $TOKEN é o ingest.token do sources.json (ou a variável TOKENGOTCHI_TOKEN)
+curl -s localhost:4736/feed \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"source":"grok","input_tokens":800,"output_tokens":1200}'
+curl -s localhost:4736/status -H "Authorization: Bearer $TOKEN"
+curl -s localhost:4736/show   -H "Authorization: Bearer $TOKEN"   # revela a janela
+curl -s localhost:4736/hide   -H "Authorization: Bearer $TOKEN"   # esconde de novo
+```
+
+O segredo fica no `sources.json` da pasta de dados: no macOS,
+`~/Library/Application Support/Tokengotchi/`; no Linux, `~/.config/Tokengotchi/`
+ou `~/.config/tokengotchi/`; no Windows, `%APPDATA%\Tokengotchi\`. O
+`hooks/feed.sh` procura nesses caminhos. A variável `TOKENGOTCHI_TOKEN` tem
+prioridade sobre o arquivo. A porta, se não for a padrão, sai de `ingest.port`
+ou de `TOKENGOTCHI_PORT`. Para apontar outro arquivo, use `TOKENGOTCHI_SOURCES`.
+
+Há limite de taxa, com baldes separados: tentativas sem segredo não consomem
+a cota do hook autenticado. Acima do limite a resposta é HTTP 429 e o
+bichinho não muda. Uma contagem negativa, fracionária ou acima de 100 milhões
+de tokens num campo é recusada.
+
+Para desligar o servidor por completo, em `sources.json`:
+
+```json
+"ingest": { "enabled": false, "port": 4736, "token": "" }
 ```
 
 O `/status` também mostra a evolução: `level` e `totalLevels` indicam o nível
@@ -471,13 +499,17 @@ O `/status` devolve o mesmo estado que a janela recebe, incluindo `version`
 descobre, em um comando, por que uma faixa de atualização está aparecendo:
 
 ```bash
-curl -s localhost:4736/status | python3 -m json.tool | grep -E "version|update|pending"
+curl -s localhost:4736/status -H "Authorization: Bearer $TOKEN" \
+  | python3 -m json.tool | grep -E "version|update|pending"
 ```
 
 Se a porta 4736 já estiver ocupada, o app avisa no console e segue comendo dos logs
 normalmente — só o servidor fica fora. Dá para mudar em `ingest.port` no `sources.json`.
 
-Tem um atalho em `hooks/feed.sh`:
+Tem um atalho em `hooks/feed.sh`. A fonte só aceita letras, dígitos e `._-`;
+os números só aceitam dígitos. O JSON é montado no Python e enviado com o
+segredo lido do ambiente ou do `sources.json` — esses valores não entram em
+string de comando do shell. Precisa de `python3` (já vem no macOS).
 
 ```bash
 chmod +x hooks/feed.sh
@@ -549,12 +581,13 @@ Apagar o `pet.json` é o botão de reset definitivo.
 src/main/main.js      janela, tray, loop de varredura a cada 8s
 src/main/sources.js   leitura incremental dos logs + parsers por ferramenta
 src/main/pet.js       fome, saúde, evolução, persistência
-src/main/ingest.js    servidor HTTP local (/feed, /status, /show, /hide)
+src/main/ingest.js    servidor HTTP local autenticado (/feed, /status, /show, /hide)
 src/main/updates.js   checagem de versão nova (única saída de rede) e detecção
                       de bundle trocado sob o processo em execução
 src/renderer/         a janelinha: pixel art em canvas + medidores
 config/               fontes padrão, copiadas para o Application Support na 1ª vez
-hooks/feed.sh         atalho para alimentar via hook de qualquer ferramenta
+hooks/feed.sh         atalho autenticado para alimentar via hook de qualquer ferramenta
+scripts/ingest-call.js  status/show/hide com o segredo, usado pelas tasks do mise
 scripts/doctor.js     diagnóstico das fontes
 scripts/selftest.js   testes das regras e dos parsers (mise run test)
 scripts/make-icon.js  gera build/icon.png a partir de pixel art, sem dependências

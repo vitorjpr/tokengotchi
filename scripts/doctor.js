@@ -98,5 +98,15 @@ for (const source of config.sources || []) {
 }
 
 const port = config.ingest?.port || 4736;
-console.log(`Alimentação manual: curl -s localhost:${port}/feed -d '{"source":"teste","output":5000}'`);
-console.log(`Status do bichinho:  curl -s localhost:${port}/status\n`);
+const hasToken = typeof config.ingest?.token === 'string' && config.ingest.token.length > 0;
+console.log('Alimentação manual (header Authorization: Bearer <ingest.token>):');
+console.log(
+  `  curl -s localhost:${port}/feed -H "Authorization: Bearer <ingest.token>" -H "Content-Type: application/json" -d '{"source":"teste","output_tokens":5000}'`
+);
+console.log(
+  `Status do bichinho:  curl -s localhost:${port}/status -H "Authorization: Bearer <ingest.token>"`
+);
+if (!hasToken) {
+  console.log('Segredo ainda vazio: abra o app uma vez para gravar ingest.token no sources.json.');
+}
+console.log('');

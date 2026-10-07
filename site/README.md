@@ -29,7 +29,7 @@ SEO on each locale page: `html lang`, a canonical URL, `hreflang` for `en`, `pt`
 
 ## Public downloads
 
-`downloads.json` is the only download manifest. The page reads it at `/downloads.json` and renders an `https:` URL only. Empty arrays, a failed fetch, or a URL that is not public HTTPS show a coming-soon line in the active language. Checksums are not displayed. Do not add placeholder hashes.
+`downloads.json` is the only download manifest. The page reads it at `/downloads.json` and renders an `https:` URL only. Empty arrays, a failed fetch, or a URL that is not public HTTPS show a coming-soon line in the active language. Hash values are not printed. When every asset URL shares one GitHub release, the page links to that release's `SHA256SUMS` file (`<release base>/SHA256SUMS`). If the base cannot be derived, the link is omitted. Do not add placeholder hashes.
 
 ```json
 {

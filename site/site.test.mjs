@@ -5,6 +5,7 @@ import { build, renderDownloadResult, renderNoscript } from './build.mjs';
 import { copy } from './copy.mjs';
 import {
   archFromSignals,
+  checksumUrl,
   detectDesktopOs,
   selectDownloads,
   validateManifest,
@@ -99,6 +100,29 @@ test('download selection stays compatible with empty arrays and https-only arch 
     { label: 'macOS · Apple Silicon', url: 'https://example.com/arm.dmg', arch: 'arm64' },
     { label: 'macOS · Intel', url: 'https://example.com/intel.dmg', arch: 'x64' },
   ], 'ia64').map((entry) => entry.label), ['macOS · Apple Silicon', 'macOS · Intel']);
+
+  const release = (name) => `https://github.com/acme/tokengotchi/releases/download/v9.9.9/${name}`;
+  assert.equal(checksumUrl(empty), null);
+  assert.equal(checksumUrl({
+    macos: [{ label: 'A', url: release('a.dmg'), arch: 'arm64' }],
+    windows: [{ label: 'B', url: 'https://example.com/b.zip', arch: 'x64' }],
+    linux: [],
+  }), null);
+  assert.equal(checksumUrl({
+    macos: [{ label: 'A', url: release('a.dmg') }],
+    windows: [{ label: 'B', url: 'https://github.com/other/tokengotchi/releases/download/v9.9.9/b.zip' }],
+    linux: [],
+  }), null);
+  assert.equal(checksumUrl({
+    macos: [{ label: 'A', url: 'https://github.com/acme/tokengotchi/releases/download/v1/a.dmg' }],
+    windows: [{ label: 'B', url: 'https://github.com/acme/tokengotchi/releases/download/v2/b.zip' }],
+    linux: [],
+  }), null);
+  assert.equal(checksumUrl({
+    macos: [{ label: 'A', url: release('Tokengotchi-arm64.dmg') }],
+    windows: [{ label: 'B', url: release('Tokengotchi-win.zip') }],
+    linux: [{ label: 'C', url: release('tokengotchi_amd64.deb') }],
+  }), 'https://github.com/acme/tokengotchi/releases/download/v9.9.9/SHA256SUMS');
 });
 
 test('required lines stay in both languages and avoid a paid tier', () => {
@@ -140,8 +164,36 @@ test('required lines stay in both languages and avoid a paid tier', () => {
 
   const blob = JSON.stringify(copy).toLowerCase();
   assert.doesNotMatch(blob, /premium|pricing/);
+  assert.equal(copy.en.detailMac, copy.en.ui.detail.macos);
+  assert.equal(copy.pt.detailMac, copy.pt.ui.detail.macos);
   assert.deepEqual(Object.keys(copy.en).sort(), Object.keys(copy.pt).sort());
+  assert.deepEqual(Object.keys(copy.en.ui).sort(), Object.keys(copy.pt.ui).sort());
   assert.deepEqual(Object.keys(copy.en.ui.detail).sort(), Object.keys(copy.pt.ui.detail).sort());
+  assert.doesNotMatch(blob, /appimage/);
+  assert.doesNotMatch(blob, /installer|instalador/);
+  assert.match(copy.en.ui.detail.windows, /A \.zip\. Extract it and run Tokengotchi\.exe/);
+  assert.match(copy.en.ui.detail.windows, /More info/);
+  assert.match(copy.en.ui.detail.windows, /Run anyway/);
+  assert.match(copy.en.ui.detail.windows_x64, /For 64-bit Windows\. A \.zip/);
+  assert.match(copy.en.ui.detail.windows_arm64, /For Windows on ARM\. A \.zip/);
+  assert.match(copy.en.ui.detail.linux, /A \.deb package for amd64 and arm64 \(Debian\/Ubuntu\)/);
+  assert.match(copy.en.ui.detail.linux, /sudo apt install \.\/tokengotchi_\*\.deb/);
+  assert.match(copy.en.ui.detail.linux_x64, /For 64-bit Linux\. A \.deb package/);
+  assert.match(copy.en.ui.detail.linux_arm64, /For ARM Linux\. A \.deb package/);
+  assert.match(copy.en.ui.detail.macos, /ad-hoc signed and not notarized/);
+  assert.match(copy.en.ui.detail.macos, /right-click \(or Control-click\)/);
+  assert.match(copy.en.ui.detail.macos, /Open Anyway/);
+  assert.match(copy.en.ui.detail.macos_arm64, /For Apple Silicon\. The app is ad-hoc signed/);
+  assert.match(copy.en.ui.detail.macos_x64, /For Intel Macs\. The app is ad-hoc signed/);
+  assert.match(copy.pt.ui.detail.windows, /É um arquivo \.zip\. Extraia e execute Tokengotchi\.exe/);
+  assert.match(copy.pt.ui.detail.windows, /Mais informações/);
+  assert.match(copy.pt.ui.detail.windows, /Executar assim mesmo/);
+  assert.match(copy.pt.ui.detail.linux, /Pacote \.deb para amd64 e arm64 \(Debian\/Ubuntu\)/);
+  assert.match(copy.pt.ui.detail.linux, /sudo apt install \.\/tokengotchi_\*\.deb/);
+  assert.match(copy.pt.ui.detail.macos, /assinado ad-hoc e não é notarizado/);
+  assert.match(copy.pt.ui.detail.macos, /Abrir Mesmo Assim/);
+  assert.equal(copy.en.ui.checksum, 'Verify downloads (SHA256SUMS)');
+  assert.equal(copy.pt.ui.checksum, 'Conferir os downloads (SHA256SUMS)');
   assert.match(renderNoscript('pt', empty), /Os downloads públicos chegam em breve/);
   assert.doesNotMatch(renderNoscript('en', empty), /https?:/);
   assert.match(renderDownloadResult('en', empty), /Public downloads for macOS are coming soon/);
@@ -169,13 +221,38 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   }
   assert.match(en, /Your tokens\./);
   assert.match(pt, /Seus tokens\./);
-  assert.match(en, /Download macOS · Universal/);
-  assert.match(pt, /Baixar macOS · Universal/);
-  assert.match(en, /Tokengotchi-0\.4\.1-universal\.dmg/);
   assert.match(root, /tokengotchi_locale/);
   assert.match(root, /noindex/);
-  assert.equal(manifest.macos[0].url.includes('Tokengotchi-0.4.1-universal.dmg'), true);
-  assert.equal(manifest.linux.filter((entry) => entry.arch === 'arm64').length, 2);
+
+  const assets = ['macos', 'windows', 'linux'].flatMap((os) => manifest[os]);
+  assert.deepEqual(manifest.macos.map((entry) => entry.arch).sort(), ['arm64', 'x64']);
+  assert.ok(manifest.macos.every((entry) => entry.url.endsWith('.dmg')));
+  assert.deepEqual(manifest.windows.map((entry) => entry.arch).sort(), ['arm64', 'x64']);
+  assert.ok(manifest.windows.every((entry) => entry.url.endsWith('.zip')));
+  assert.deepEqual(manifest.linux.map((entry) => entry.arch).sort(), ['arm64', 'x64']);
+  assert.ok(manifest.linux.every((entry) => entry.url.endsWith('.deb')));
+  assert.equal(assets.filter((entry) => entry.url.endsWith('.AppImage') || entry.url.endsWith('.exe')).length, 0);
+  assert.equal(manifest.linux.filter((entry) => entry.url.includes('amd64') && entry.url.endsWith('.deb')).length, 1);
+  assert.equal(manifest.linux.filter((entry) => entry.arch === 'arm64' && entry.url.endsWith('.deb')).length, 1);
+
+  const sums = checksumUrl(manifest);
+  assert.ok(sums && sums.endsWith('/SHA256SUMS'));
+  assert.equal(new Set(assets.map((entry) => entry.url.slice(0, entry.url.lastIndexOf('/')))).size, 1);
+  for (const html of [en, pt]) {
+    for (const entry of assets) assert.ok(html.includes(entry.url));
+    assert.ok(html.includes(sums));
+    assert.doesNotMatch(html, /AppImage/);
+    assert.doesNotMatch(html, /universal\.dmg/i);
+    assert.doesNotMatch(html, /installer|instalador/i);
+  }
+  assert.match(en, /Download macOS · Apple Silicon/);
+  assert.match(en, /Download macOS · Intel/);
+  assert.match(pt, /Baixar macOS · Apple Silicon/);
+  assert.match(pt, /Baixar macOS · Intel/);
+  assert.match(en, /Verify downloads \(SHA256SUMS\)/);
+  assert.match(pt, /Conferir os downloads \(SHA256SUMS\)/);
+  assert.match(en, /ad-hoc signed and not notarized/);
+  assert.match(pt, /assinado ad-hoc e não é notarizado/);
 
   await assert.rejects(access(new URL('./dist/en/downloads.json', import.meta.url)));
   await assert.rejects(access(new URL('./dist/pt/assets/estagio-ovo.png', import.meta.url)));

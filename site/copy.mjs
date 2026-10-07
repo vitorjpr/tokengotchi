@@ -1,6 +1,6 @@
 const macFirstOpen = {
-  en: 'The app is ad-hoc signed and not notarized. On earlier macOS versions, right-click (or Control-click) the app and choose Open. On macOS Sequoia (15+), first try to open the app, choose "Done" on the warning dialog, then go to System Settings → Privacy & Security → Open Anyway.',
-  pt: 'O app é assinado ad-hoc e não é notarizado. Em versões anteriores do macOS, clique com o botão direito (ou segure Control e clique) no app e escolha Abrir. No macOS Sequoia (15+), primeiro tente abrir o app, escolha "Concluído" no aviso e depois vá em Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim.',
+  en: 'The app is ad-hoc signed and not notarized. On macOS 14 (Sonoma) or earlier, right-click (or Control-click) the app and choose Open. On macOS Sequoia (15+), first try to open the app, choose "Done" on the warning dialog, then go to System Settings → Privacy & Security → Open Anyway.',
+  pt: 'O app é assinado ad-hoc e não é notarizado. No macOS 14 (Sonoma) ou anterior, clique com o botão direito (ou segure Control e clique) no app e escolha Abrir. No macOS Sequoia (15+), primeiro tente abrir o app, escolha "Concluído" no aviso e depois vá em Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim.',
 };
 
 const winZip = {

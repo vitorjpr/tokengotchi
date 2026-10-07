@@ -185,6 +185,7 @@ test('required lines stay in both languages and avoid a paid tier', () => {
   assert.match(copy.en.ui.detail.macos, /ad-hoc signed and not notarized/);
   assert.match(copy.en.ui.detail.macos, /right-click \(or Control-click\)/);
   assert.match(copy.en.ui.detail.macos, /Open Anyway/);
+  assert.match(copy.en.ui.detail.macos, /On macOS 14 \(Sonoma\) or earlier, right-click \(or Control-click\)/);
   assert.match(copy.en.ui.detail.macos, /first try to open the app, choose "Done"/);
   assert.match(copy.en.ui.detail.macos_arm64, /For Apple Silicon\. The app is ad-hoc signed/);
   assert.match(copy.en.ui.detail.macos_x64, /For Intel Macs\. The app is ad-hoc signed/);
@@ -195,7 +196,7 @@ test('required lines stay in both languages and avoid a paid tier', () => {
   assert.match(copy.pt.ui.detail.windows, /pode avisar/);
   assert.match(copy.pt.ui.detail.linux, /Pacote \.deb para amd64 e arm64 \(Debian\/Ubuntu\)/);
   assert.match(copy.pt.ui.detail.macos, /assinado ad-hoc e não é notarizado/);
-  assert.match(copy.pt.ui.detail.macos, /segure Control e clique/);
+  assert.match(copy.pt.ui.detail.macos, /No macOS 14 \(Sonoma\) ou anterior, clique com o botão direito \(ou segure Control e clique\)/);
   assert.match(copy.pt.ui.detail.macos, /Abrir Mesmo Assim/);
   assert.match(copy.pt.ui.detail.macos, /primeiro tente abrir o app, escolha "Concluído"/);
   assert.equal(copy.en.ui.checksum, 'Verify downloads (SHA256SUMS)');
@@ -268,8 +269,10 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   assert.doesNotMatch(en, /#verify/);
   assert.doesNotMatch(pt, /#verify/);
   assert.match(en, /ad-hoc signed and not notarized/);
+  assert.match(en, /On macOS 14 \(Sonoma\) or earlier/);
   assert.match(en, /first try to open the app/);
   assert.match(pt, /assinado ad-hoc e não é notarizado/);
+  assert.match(pt, /No macOS 14 \(Sonoma\) ou anterior/);
   assert.match(pt, /segure Control e clique/);
   assert.match(pt, /pode avisar/);
   assert.doesNotMatch(en, /tokengotchi_\*\.deb/);
@@ -285,7 +288,7 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
 });
 
 test('apt commands use the deb basename and fall back without a placeholder', () => {
-  const release = (name) => `https://github.com/acme/tokengotchi/releases/download/v9.9.9/${name}`;
+  const release = (name) => `https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.1/${name}`;
   const manifest = {
     linux: [
       { label: 'Debian (x64)', url: release('tokengotchi_0.5.1_amd64.deb'), arch: 'x64' },
@@ -298,9 +301,30 @@ test('apt commands use the deb basename and fall back without a placeholder', ()
   ]);
   assert.deepEqual(aptInstallCommands([{ url: release('tokengotchi_<version>_amd64.deb') }]), []);
   assert.deepEqual(aptInstallCommands([{ url: release('not safe.deb') }]), []);
-  assert.deepEqual(aptInstallCommands([{ url: 'http://example.com/tokengotchi_0.5.1_amd64.deb' }]), [
-    'sudo apt install ./tokengotchi_0.5.1_amd64.deb',
-  ]);
+  const rejected = [
+    release('tokengotchi_0.5.1_amd64.deb%3Brm'),
+    release('tokengotchi_0.5.1_amd64.deb;rm'),
+    release('a$(rm).deb'),
+    release('a`rm`.deb'),
+    release('tokengotchi_0.5.1_amd64.deb%0A'),
+    release('tokengotchi_0.5.1_amd\n64.deb'),
+    release('tokengotchi_0.5.1_amd64.deb\n'),
+    release('my file.deb'),
+    release('tokengotchi_0.5.1_amd64.deb%20x'),
+    'https://example.com/tokengotchi_0.5.1_amd64.deb',
+    'http://github.com/vitorjpr/tokengotchi/releases/download/v0.5.1/tokengotchi_0.5.1_amd64.deb',
+    'https://github.com/acme/tokengotchi/releases/download/v0.5.1/tokengotchi_0.5.1_amd64.deb',
+    'https://github.com/vitorjpr/other/releases/download/v0.5.1/tokengotchi_0.5.1_amd64.deb',
+    'https://github.com/vitorjpr/tokengotchi/archive/v0.5.1/tokengotchi_0.5.1_amd64.deb',
+  ];
+  for (const url of rejected) {
+    assert.deepEqual(aptInstallCommands([{ url }]), [], url);
+    assert.equal(
+      linuxDetail(copy.en.ui, [{ label: 'Debian (x64)', url, arch: 'x64' }]),
+      copy.en.ui.detail.linux_x64,
+      url,
+    );
+  }
 
   for (const locale of ['en', 'pt']) {
     const page = copy[locale].ui;

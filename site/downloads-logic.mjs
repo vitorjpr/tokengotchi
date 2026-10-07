@@ -134,10 +134,20 @@ export function detectDesktopOs(userAgent = '', { platform = '', maxTouchPoints 
 }
 
 const SAFE_DEB_NAME = /^[A-Za-z0-9._+-]+\.deb$/;
+const RELEASE_ROOT = 'https://github.com/vitorjpr/tokengotchi/releases/download/';
 
-/** Basename of a .deb URL, or null when it is missing or not a plain filename. */
+/**
+ * Basename of a .deb published on this repo's GitHub release, or null.
+ * Control characters are rejected before the URL parser can strip them.
+ * A percent-encoded basename is rejected. A plain basename is checked
+ * after decoding, so `;`, `$()`, a backtick, a newline, or a space cannot
+ * become a command.
+ */
 export function debFileName(url) {
   if (typeof url !== 'string' || !url) return null;
+  if (/[\u0000-\u001F\u007F]/.test(url)) return null;
+  const base = githubReleaseBase(url);
+  if (!base?.startsWith(RELEASE_ROOT)) return null;
   let pathname;
   try {
     pathname = new URL(url).pathname;
@@ -145,6 +155,7 @@ export function debFileName(url) {
     return null;
   }
   const raw = pathname.split('/').pop() || '';
+  if (raw.includes('%')) return null;
   let name;
   try {
     name = decodeURIComponent(raw);
@@ -180,7 +191,14 @@ export function formatAptSentence(lead, commands, { verb, orWord } = {}) {
   return `${lead} ${verb} ${list}.`;
 }
 
-/** Linux install sentence: real filenames when every shown deb is safe, otherwise the fallback copy. */
+/**
+ * Linux install sentence for the downloads on screen.
+ * One non-universal arch uses that arch's lead and its command; more than
+ * one arch uses the shared lead and every command. Each command is
+ * `sudo apt install ./` plus a validated .deb basename from this repo's
+ * GitHub release. When none validate, returns the fallback copy, which
+ * has no version placeholder.
+ */
 export function linuxDetail(ui, entries) {
   const list = Array.isArray(entries) ? entries : [];
   const commands = aptInstallCommands(list);

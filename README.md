@@ -109,16 +109,22 @@ Vá em **[Downloads (Releases)](../../releases/latest)** e baixe **um** arquivo:
 
 | Se você usa | Baixe o arquivo que termina em |
 | --- | --- |
-| **Mac** (qualquer um, Intel ou M1/M2/M3/M4) | **`-universal.dmg`** |
-| **Windows** | **`-Setup-<versão>.exe`** |
+| **Mac com chip Apple** (M1, M2, M3, M4) | **`-arm64.dmg`** |
+| **Mac Intel** | **`-x64.dmg`** |
+| **Windows** (a maioria dos PCs) | **`-Setup-<versão>-x64.exe`** |
+| **Windows em ARM** | **`-Setup-<versão>-arm64.exe`** |
 | **Ubuntu / Linux Mint / Debian** | **`_amd64.deb`** |
 | **Outro Linux** | **`.AppImage`** |
 
-Os nomes trazem o número da versão (por exemplo `Tokengotchi-0.2.0-universal.dmg`),
+Os nomes trazem o número da versão (por exemplo `Tokengotchi-0.5.0-arm64.dmg`),
 que muda a cada lançamento — o que importa é a terminação.
 
-> No Mac é um arquivo só e ele serve para todos os modelos — você não precisa
-> descobrir qual processador o seu tem.
+No Mac, o menu Apple → *Sobre este Mac* diz qual arquivo baixar. Se aparecer
+**Chip** Apple, use o `-arm64.dmg`. Se aparecer **Processador** Intel, use o
+`-x64.dmg`.
+
+No Windows, quase todo PC é x64: baixe o `-x64.exe`. O `-arm64.exe` é só para
+quando *Configurações → Sistema → Sobre* disser que o tipo de sistema é ARM.
 
 ### 2. Instale
 
@@ -198,7 +204,7 @@ nela. Você continua com o mesmo bichinho e com as calorias que ele já acumulou
 | Sistema | O que fazer |
 | --- | --- |
 | **Mac** | Baixe o `.dmg` novo e arraste para *Applications* de novo. Ele pergunta se quer substituir — diga que sim. |
-| **Windows** | Rode o novo `-Setup-<versão>.exe`. Ele atualiza sozinho, por cima. |
+| **Windows** | Rode o novo `-Setup-<versão>-x64.exe` (ou `-arm64.exe` num PC ARM). Ele atualiza sozinho, por cima. |
 | **Ubuntu/Debian** | Dê dois cliques no `.deb` novo, ou `sudo dpkg -i tokengotchi_<versão>_amd64.deb`. |
 | **Outro Linux** | Substitua o `.AppImage` antigo pelo novo. |
 
@@ -239,8 +245,8 @@ cd tokengotchi
 mise trust && mise install
 mise exec -- npm install
 
-mise exec -- npm run dist:mac     # .dmg + .zip (universal)
-mise exec -- npm run dist:win     # instalador .exe + .zip (x64 e arm64)
+mise exec -- npm run dist:mac     # .dmg + .zip (x64 e arm64, separados)
+mise exec -- npm run dist:win     # instalador .exe + .zip (x64 e arm64, separados)
 mise exec -- npm run dist:linux   # .AppImage + .deb (x64 e arm64)
 ```
 

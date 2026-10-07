@@ -34,14 +34,18 @@ SEO on each locale page: `html lang`, a canonical URL, `hreflang` for `en`, `pt`
 ```json
 {
   "macos": [
-    { "label": "macOS · Universal", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.4.1/Tokengotchi-0.4.1-universal.dmg" }
+    { "label": "macOS · Apple Silicon", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-0.5.0-arm64.dmg", "arch": "arm64" },
+    { "label": "macOS · Intel", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-0.5.0-x64.dmg", "arch": "x64" }
   ],
   "windows": [
-    { "label": "Windows", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.4.1/Tokengotchi-Setup-0.4.1.exe" }
+    { "label": "Windows · x64", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-Setup-0.5.0-x64.exe", "arch": "x64" },
+    { "label": "Windows · arm64", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-Setup-0.5.0-arm64.exe", "arch": "arm64" }
   ],
   "linux": [
-    { "label": "AppImage (x64)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.4.1/Tokengotchi-0.4.1.AppImage", "arch": "x64" },
-    { "label": "Debian (arm64)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.4.1/tokengotchi_0.4.1_arm64.deb", "arch": "arm64" }
+    { "label": "AppImage (x64)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-0.5.0.AppImage", "arch": "x64" },
+    { "label": "Debian (x64)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/tokengotchi_0.5.0_amd64.deb", "arch": "x64" },
+    { "label": "AppImage (arm64)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-0.5.0-arm64.AppImage", "arch": "arm64" },
+    { "label": "Debian (arm64)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/tokengotchi_0.5.0_arm64.deb", "arch": "arm64" }
   ]
 }
 ```
@@ -58,7 +62,7 @@ On the visitor's own desktop OS, a matching `arch` replaces the universal file. 
 
 Labels stay language-neutral. The page supplies the verb: `Download {label}` / `Baixar {label}`.
 
-The manifest currently points at the latest public GitHub release, **v0.4.1**. The repo version may be ahead of that tag; do not invent URLs for an unpublished release. The macOS asset is one universal `.dmg`. The Windows asset is the single `Tokengotchi-Setup-0.4.1.exe` from that release (the filename has no arch). Linux already has x64 and arm64 AppImage and Debian packages. When a later release publishes one file per arch, add those HTTPS URLs with `arch` and drop the universal entry. Homebrew stays off the page until a tap exists.
+The live manifest still points at the latest *published* GitHub release until a newer one is cut. Do not invent URLs for an unpublished release. From v0.5.0 onward, macOS ships separate Apple Silicon and Intel `.dmg`/`.zip` files, Windows ships per-arch Setup `.exe` (and zips), and Linux keeps per-arch AppImage and Debian packages — put those HTTPS URLs in with `arch` and drop any universal entry. Homebrew stays off the page until a tap exists.
 
 ## Artwork
 

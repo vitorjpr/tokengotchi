@@ -31,19 +31,21 @@ SEO on each locale page: `html lang`, a canonical URL, `hreflang` for `en`, `pt`
 
 `downloads.json` is the only download manifest. The page reads it at `/downloads.json` and renders an `https:` URL only. Empty arrays, a failed fetch, or a URL that is not public HTTPS show a coming-soon line in the active language. Hash values are not printed. When every asset URL shares one GitHub release, the page links to that release's `SHA256SUMS` file (`<release base>/SHA256SUMS`). If the base cannot be derived, the link is omitted. Do not add placeholder hashes.
 
+The example below is the shape only. `<tag>` and `<version>` are placeholders. Copy real HTTPS URLs from the published release into `downloads.json`; that file is the source of truth.
+
 ```json
 {
   "macos": [
-    { "label": "macOS · Apple Silicon", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-0.5.0-arm64.dmg", "arch": "arm64" },
-    { "label": "macOS · Intel", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-0.5.0-x64.dmg", "arch": "x64" }
+    { "label": "macOS · Apple Silicon", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/Tokengotchi-<version>-arm64.dmg", "arch": "arm64" },
+    { "label": "macOS · Intel", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/Tokengotchi-<version>-x64.dmg", "arch": "x64" }
   ],
   "windows": [
-    { "label": "Windows · x64 (zip)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-0.5.0-win.zip", "arch": "x64" },
-    { "label": "Windows · arm64 (zip)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-0.5.0-arm64-win.zip", "arch": "arm64" }
+    { "label": "Windows · x64 (zip)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/Tokengotchi-<version>-win.zip", "arch": "x64" },
+    { "label": "Windows · arm64 (zip)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/Tokengotchi-<version>-arm64-win.zip", "arch": "arm64" }
   ],
   "linux": [
-    { "label": "Debian (x64)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/tokengotchi_0.5.0_amd64.deb", "arch": "x64" },
-    { "label": "Debian (arm64)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/tokengotchi_0.5.0_arm64.deb", "arch": "arm64" }
+    { "label": "Debian (x64)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/tokengotchi_<version>_amd64.deb", "arch": "x64" },
+    { "label": "Debian (arm64)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/tokengotchi_<version>_arm64.deb", "arch": "arm64" }
   ]
 }
 ```
@@ -60,7 +62,7 @@ On the visitor's own desktop OS, a matching `arch` replaces the universal file. 
 
 Labels stay language-neutral. The page supplies the verb: `Download {label}` / `Baixar {label}`.
 
-The live manifest still points at the latest *published* GitHub release until a newer one is cut. Do not invent URLs for an unpublished release. From v0.5.0 onward, files are per-arch: list each HTTPS URL with `arch` and drop any universal entry. v0.5.0 publishes macOS Apple Silicon and Intel `.dmg`/`.zip` files (ad-hoc signed, not notarized), Windows `.zip` (x64 and arm64), and Linux `.deb` (amd64 and arm64). It does not publish a Windows Setup `.exe` or a Linux AppImage, even though the build config can produce them; add those entries only when a published release actually carries them. Homebrew stays off the page until a tap exists.
+`downloads.json` is the source of truth for the live files and version. It points at the latest published GitHub release. Do not invent URLs for an unpublished release, and do not copy a version number out of this README. Files are per-arch: list each HTTPS URL with `arch` and drop any universal entry. The page lists macOS Apple Silicon and Intel `.dmg` files (ad-hoc signed, not notarized), Windows `.zip` (x64 and arm64), and Linux `.deb` (amd64 and arm64). Add a Windows Setup `.exe` or a Linux AppImage only when a published release actually carries them. Homebrew stays off the page until a tap exists.
 
 ## Artwork
 

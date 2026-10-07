@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { build, renderDownloadResult, renderNoscript } from './build.mjs';
+import { build, renderChecksum, renderDownloadResult, renderNoscript } from './build.mjs';
 import { copy } from './copy.mjs';
+import { inlineCodeSegments } from './inline-code.mjs';
 import {
+  aptInstallCommands,
   archFromSignals,
   checksumUrl,
   detectDesktopOs,
+  linuxDetail,
   selectDownloads,
   validateManifest,
 } from './downloads-logic.mjs';
@@ -177,23 +180,30 @@ test('required lines stay in both languages and avoid a paid tier', () => {
   assert.match(copy.en.ui.detail.windows_x64, /For 64-bit Windows\. A \.zip/);
   assert.match(copy.en.ui.detail.windows_arm64, /For Windows on ARM\. A \.zip/);
   assert.match(copy.en.ui.detail.linux, /A \.deb package for amd64 and arm64 \(Debian\/Ubuntu\)/);
-  assert.match(copy.en.ui.detail.linux, /sudo apt install \.\/tokengotchi_\*\.deb/);
   assert.match(copy.en.ui.detail.linux_x64, /For 64-bit Linux\. A \.deb package/);
   assert.match(copy.en.ui.detail.linux_arm64, /For ARM Linux\. A \.deb package/);
   assert.match(copy.en.ui.detail.macos, /ad-hoc signed and not notarized/);
   assert.match(copy.en.ui.detail.macos, /right-click \(or Control-click\)/);
   assert.match(copy.en.ui.detail.macos, /Open Anyway/);
+  assert.match(copy.en.ui.detail.macos, /first try to open the app, choose "Done"/);
   assert.match(copy.en.ui.detail.macos_arm64, /For Apple Silicon\. The app is ad-hoc signed/);
   assert.match(copy.en.ui.detail.macos_x64, /For Intel Macs\. The app is ad-hoc signed/);
+  assert.match(copy.en.ui.detail.windows, /SmartScreen may warn/);
   assert.match(copy.pt.ui.detail.windows, /É um arquivo \.zip\. Extraia e execute Tokengotchi\.exe/);
   assert.match(copy.pt.ui.detail.windows, /Mais informações/);
   assert.match(copy.pt.ui.detail.windows, /Executar assim mesmo/);
+  assert.match(copy.pt.ui.detail.windows, /pode avisar/);
   assert.match(copy.pt.ui.detail.linux, /Pacote \.deb para amd64 e arm64 \(Debian\/Ubuntu\)/);
-  assert.match(copy.pt.ui.detail.linux, /sudo apt install \.\/tokengotchi_\*\.deb/);
   assert.match(copy.pt.ui.detail.macos, /assinado ad-hoc e não é notarizado/);
+  assert.match(copy.pt.ui.detail.macos, /segure Control e clique/);
   assert.match(copy.pt.ui.detail.macos, /Abrir Mesmo Assim/);
+  assert.match(copy.pt.ui.detail.macos, /primeiro tente abrir o app, escolha "Concluído"/);
   assert.equal(copy.en.ui.checksum, 'Verify downloads (SHA256SUMS)');
   assert.equal(copy.pt.ui.checksum, 'Conferir os downloads (SHA256SUMS)');
+  assert.equal(copy.en.ui.checksumNote, 'SHA256SUMS is published in the same release, so it detects corrupted downloads, not a compromised release.');
+  assert.equal(copy.pt.ui.checksumNote, 'O SHA256SUMS é publicado no mesmo release, então detecta downloads corrompidos, não um release comprometido.');
+  assert.doesNotMatch(blob, /tokengotchi_\*/);
+  assert.doesNotMatch(blob, /\*\.deb/);
   assert.match(renderNoscript('pt', empty), /Os downloads públicos chegam em breve/);
   assert.doesNotMatch(renderNoscript('en', empty), /https?:/);
   assert.match(renderDownloadResult('en', empty), /Public downloads for macOS are coming soon/);
@@ -251,11 +261,86 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   assert.match(pt, /Baixar macOS · Intel/);
   assert.match(en, /Verify downloads \(SHA256SUMS\)/);
   assert.match(pt, /Conferir os downloads \(SHA256SUMS\)/);
+  assert.match(en, /SHA256SUMS is published in the same release/);
+  assert.match(pt, /O SHA256SUMS é publicado no mesmo release/);
+  assert.match(en, /class="checksum-note"/);
+  assert.match(pt, /class="checksum-note"/);
+  assert.doesNotMatch(en, /#verify/);
+  assert.doesNotMatch(pt, /#verify/);
   assert.match(en, /ad-hoc signed and not notarized/);
+  assert.match(en, /first try to open the app/);
   assert.match(pt, /assinado ad-hoc e não é notarizado/);
+  assert.match(pt, /segure Control e clique/);
+  assert.match(pt, /pode avisar/);
+  assert.doesNotMatch(en, /tokengotchi_\*\.deb/);
+  assert.doesNotMatch(pt, /tokengotchi_\*\.deb/);
+  assert.doesNotMatch(en, /<version>|&lt;version&gt;|\\u003cversion/);
+  assert.doesNotMatch(pt, /<version>|&lt;version&gt;|\\u003cversion/);
 
   await assert.rejects(access(new URL('./dist/en/downloads.json', import.meta.url)));
   await assert.rejects(access(new URL('./dist/pt/assets/estagio-ovo.png', import.meta.url)));
   await access(new URL('./dist/assets/estagio-dragao-ancestral.png', import.meta.url));
   await access(new URL('./dist/downloads-logic.mjs', import.meta.url));
+  await access(new URL('./dist/inline-code.mjs', import.meta.url));
+});
+
+test('apt commands use the deb basename and fall back without a placeholder', () => {
+  const release = (name) => `https://github.com/acme/tokengotchi/releases/download/v9.9.9/${name}`;
+  const manifest = {
+    linux: [
+      { label: 'Debian (x64)', url: release('tokengotchi_0.5.1_amd64.deb'), arch: 'x64' },
+      { label: 'Debian (arm64)', url: release('tokengotchi_0.5.1_arm64.deb'), arch: 'arm64' },
+    ],
+  };
+  assert.deepEqual(aptInstallCommands(manifest.linux), [
+    'sudo apt install ./tokengotchi_0.5.1_amd64.deb',
+    'sudo apt install ./tokengotchi_0.5.1_arm64.deb',
+  ]);
+  assert.deepEqual(aptInstallCommands([{ url: release('tokengotchi_<version>_amd64.deb') }]), []);
+  assert.deepEqual(aptInstallCommands([{ url: release('not safe.deb') }]), []);
+  assert.deepEqual(aptInstallCommands([{ url: 'http://example.com/tokengotchi_0.5.1_amd64.deb' }]), [
+    'sudo apt install ./tokengotchi_0.5.1_amd64.deb',
+  ]);
+
+  for (const locale of ['en', 'pt']) {
+    const page = copy[locale].ui;
+    const both = linuxDetail(page, manifest.linux);
+    const codes = inlineCodeSegments(both).filter((part) => part.code).map((part) => part.value);
+    assert.deepEqual(codes, [
+      'sudo apt install ./tokengotchi_0.5.1_amd64.deb',
+      'sudo apt install ./tokengotchi_0.5.1_arm64.deb',
+    ]);
+    assert.doesNotMatch(both, /[<>]/);
+    const x64 = linuxDetail(page, [manifest.linux[0]]);
+    assert.deepEqual(inlineCodeSegments(x64).filter((part) => part.code).map((part) => part.value), [
+      'sudo apt install ./tokengotchi_0.5.1_amd64.deb',
+    ]);
+    assert.match(x64, locale === 'en' ? /For 64-bit Linux/ : /Para Linux de 64 bits/);
+    const arm = linuxDetail(page, [manifest.linux[1]]);
+    assert.deepEqual(inlineCodeSegments(arm).filter((part) => part.code).map((part) => part.value), [
+      'sudo apt install ./tokengotchi_0.5.1_arm64.deb',
+    ]);
+
+    for (const missing of [undefined, null, [], {}]) {
+      const fallback = linuxDetail(page, missing);
+      assert.equal(fallback, page.detail.linux);
+      assert.doesNotMatch(fallback, /[<>]/);
+      assert.doesNotMatch(fallback, /<version>|&lt;version&gt;|\bversion\b/i);
+      const fallbackCodes = inlineCodeSegments(fallback).filter((part) => part.code).map((part) => part.value);
+      assert.deepEqual(fallbackCodes, ['sudo apt install ./']);
+    }
+    assert.equal(linuxDetail(page, [{ label: 'Nope', url: release('tokengotchi_<version>_amd64.deb'), arch: 'x64' }]), page.detail.linux_x64);
+    assert.doesNotMatch(JSON.stringify(page), /<version>|&lt;version&gt;/);
+  }
+  assert.doesNotMatch(JSON.stringify(copy), /<version>|&lt;version&gt;/);
+
+  const sample = renderChecksum('en', {
+    macos: [{ label: 'A', url: 'https://github.com/acme/tokengotchi/releases/download/v9.9.9/a.dmg' }],
+    windows: [{ label: 'B', url: 'https://github.com/acme/tokengotchi/releases/download/v9.9.9/b.zip' }],
+    linux: [{ label: 'C', url: 'https://github.com/acme/tokengotchi/releases/download/v9.9.9/c.deb' }],
+  });
+  assert.match(sample, /<p class="download-verify"><a href="https:\/\/github.com\/acme\/tokengotchi\/releases\/download\/v9\.9\.9\/SHA256SUMS">/);
+  assert.match(sample, /<p class="checksum-note">SHA256SUMS is published in the same release/);
+  assert.doesNotMatch(sample, /href="[^"]+#/);
+  assert.equal(renderChecksum('en', empty), '');
 });

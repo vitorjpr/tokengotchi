@@ -1,4 +1,5 @@
-import { archFromSignals, checksumUrl, detectDesktopOs, selectDownloads } from './downloads-logic.mjs';
+import { archFromSignals, checksumUrl, detectDesktopOs, linuxDetail, selectDownloads } from './downloads-logic.mjs';
+import { inlineCodeSegments } from './inline-code.mjs';
 import { LOCALE_COOKIE } from './negotiate.mjs';
 
 const ui = JSON.parse(document.querySelector('#ui-copy').textContent);
@@ -29,6 +30,7 @@ const result = document.querySelector('#download-result');
 const detail = document.querySelector('#download-detail');
 
 function detailText(os, entries) {
+  if (os === 'linux') return linuxDetail(ui, entries);
   const archs = new Set(entries.map((entry) => entry.arch));
   if (entries.length === 0) return ui.detail[os];
   if (archs.size === 1 && !archs.has('universal')) return ui.detail[`${os}_${[...archs][0]}`] || ui.detail[os];
@@ -41,7 +43,7 @@ function render() {
   });
   const arch = selected === detected ? cpuArch : null;
   const entries = selectDownloads(downloads[selected], arch);
-  detail.textContent = detailText(selected, entries);
+  setDetail(detailText(selected, entries));
   result.replaceChildren();
   for (const entry of entries) {
     const link = document.createElement('a');
@@ -71,6 +73,19 @@ document.querySelectorAll('[data-os]').forEach((button) => {
 document.querySelector('#year').textContent = String(new Date().getFullYear());
 render();
 
+function setDetail(text) {
+  detail.replaceChildren();
+  for (const part of inlineCodeSegments(text)) {
+    if (!part.code) {
+      detail.append(part.value);
+      continue;
+    }
+    const code = document.createElement('code');
+    code.textContent = part.value;
+    detail.append(code);
+  }
+}
+
 function renderChecksum() {
   const slot = document.querySelector('#download-verify');
   if (!slot) return;
@@ -84,6 +99,11 @@ function renderChecksum() {
   line.className = 'download-verify';
   line.append(link);
   slot.append(line);
+  if (!ui.checksumNote) return;
+  const note = document.createElement('p');
+  note.className = 'checksum-note';
+  note.textContent = ui.checksumNote;
+  slot.append(note);
 }
 
 async function loadDownloads() {

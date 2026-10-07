@@ -1,35 +1,37 @@
 {
   "macos": [
     {
-      "label": "macOS · Universal",
-      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.4.1/Tokengotchi-0.4.1-universal.dmg"
+      "label": "macOS · Apple Silicon",
+      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-0.5.0-arm64.dmg",
+      "arch": "arm64"
+    },
+    {
+      "label": "macOS · Intel",
+      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-0.5.0-x64.dmg",
+      "arch": "x64"
     }
   ],
   "windows": [
     {
-      "label": "Windows",
-      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.4.1/Tokengotchi-Setup-0.4.1.exe"
+      "label": "Windows · x64 (zip)",
+      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-0.5.0-win.zip",
+      "arch": "x64"
+    },
+    {
+      "label": "Windows · arm64 (zip)",
+      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/Tokengotchi-0.5.0-arm64-win.zip",
+      "arch": "arm64"
     }
   ],
   "linux": [
     {
-      "label": "AppImage (x64)",
-      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.4.1/Tokengotchi-0.4.1.AppImage",
-      "arch": "x64"
-    },
-    {
       "label": "Debian (x64)",
-      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.4.1/tokengotchi_0.4.1_amd64.deb",
+      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/tokengotchi_0.5.0_amd64.deb",
       "arch": "x64"
-    },
-    {
-      "label": "AppImage (arm64)",
-      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.4.1/Tokengotchi-0.4.1-arm64.AppImage",
-      "arch": "arm64"
     },
     {
       "label": "Debian (arm64)",
-      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.4.1/tokengotchi_0.4.1_arm64.deb",
+      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.0/tokengotchi_0.5.0_arm64.deb",
       "arch": "arm64"
     }
   ]

@@ -1,4 +1,4 @@
-import { archFromSignals, checksumUrl, detectDesktopOs, selectDownloads } from './downloads-logic.mjs';
+import { archFromSignals, checksumUrl, detectDesktopOs, linuxDetail, selectDownloads } from './downloads-logic.mjs';
 import { inlineCodeSegments } from './inline-code.mjs';
 import { LOCALE_COOKIE } from './negotiate.mjs';
 
@@ -30,6 +30,7 @@ const result = document.querySelector('#download-result');
 const detail = document.querySelector('#download-detail');
 
 function detailText(os, entries) {
+  if (os === 'linux') return linuxDetail(ui, entries);
   const archs = new Set(entries.map((entry) => entry.arch));
   if (entries.length === 0) return ui.detail[os];
   if (archs.size === 1 && !archs.has('universal')) return ui.detail[`${os}_${[...archs][0]}`] || ui.detail[os];

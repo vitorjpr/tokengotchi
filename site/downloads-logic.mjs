@@ -133,6 +133,69 @@ export function detectDesktopOs(userAgent = '', { platform = '', maxTouchPoints 
   return null;
 }
 
+const SAFE_DEB_NAME = /^[A-Za-z0-9._+-]+\.deb$/;
+
+/** Basename of a .deb URL, or null when it is missing or not a plain filename. */
+export function debFileName(url) {
+  if (typeof url !== 'string' || !url) return null;
+  let pathname;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+  const raw = pathname.split('/').pop() || '';
+  let name;
+  try {
+    name = decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+  return SAFE_DEB_NAME.test(name) ? name : null;
+}
+
+/** Paste-ready apt commands for deb entries, in entry order. Unsafe names are skipped. */
+export function aptInstallCommands(entries) {
+  if (!Array.isArray(entries)) return [];
+  const commands = [];
+  for (const entry of entries) {
+    const name = debFileName(entry?.url);
+    if (!name) continue;
+    const command = `sudo apt install ./${name}`;
+    if (/[<>]/.test(command)) continue;
+    commands.push(command);
+  }
+  return commands;
+}
+
+/**
+ * Lead plus one code-marked apt command per file.
+ * Returns null when there is no safe command, so callers keep the fallback sentence.
+ */
+export function formatAptSentence(lead, commands, { verb, orWord } = {}) {
+  if (!lead || !verb || !orWord || !Array.isArray(commands) || !commands.length) return null;
+  if (commands.some((command) => typeof command !== 'string' || /[<>]/.test(command))) return null;
+  const coded = commands.map((command) => `\`${command}\``);
+  const list = coded.length === 1 ? coded[0] : `${coded.slice(0, -1).join(', ')} ${orWord} ${coded.at(-1)}`;
+  return `${lead} ${verb} ${list}.`;
+}
+
+/** Linux install sentence: real filenames when every shown deb is safe, otherwise the fallback copy. */
+export function linuxDetail(ui, entries) {
+  const list = Array.isArray(entries) ? entries : [];
+  const commands = aptInstallCommands(list);
+  const archs = new Set(list.map((entry) => entry?.arch).filter((arch) => arch && arch !== 'universal'));
+  const arch = list.length && archs.size === 1 ? [...archs][0] : null;
+  const lead = (arch && ui?.linuxLead?.[arch]) || ui?.linuxLead?.both || '';
+  const sentence = formatAptSentence(lead, commands, {
+    verb: ui?.linuxInstallWith,
+    orWord: ui?.linuxInstallOr,
+  });
+  if (sentence) return sentence;
+  if (arch && ui?.detail?.[`linux_${arch}`]) return ui.detail[`linux_${arch}`];
+  return ui?.detail?.linux || '';
+}
+
 /** Client hints win, then the UA, then a GPU renderer string for Macs that still say Intel. */
 export function archFromSignals({ userAgent = '', architecture = '', renderer = '' } = {}) {
   const hinted = String(architecture || '').toLowerCase();

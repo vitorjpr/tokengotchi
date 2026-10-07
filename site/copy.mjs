@@ -8,23 +8,26 @@ const winZip = {
   pt: 'É um arquivo .zip. Extraia e execute Tokengotchi.exe. O app não é assinado, então o SmartScreen pode avisar: clique em "Mais informações" e depois em "Executar assim mesmo".',
 };
 
-const aptAmd64 = '`sudo apt install ./tokengotchi_<version>_amd64.deb`';
-const aptArm64 = '`sudo apt install ./tokengotchi_<version>_arm64.deb`';
-
-const linuxDeb = {
-  en: `A .deb package for amd64 and arm64 (Debian/Ubuntu). Install with ${aptAmd64} or ${aptArm64}.`,
-  pt: `Pacote .deb para amd64 e arm64 (Debian/Ubuntu). Instale com ${aptAmd64} ou ${aptArm64}.`,
+const linuxLead = {
+  en: {
+    both: 'A .deb package for amd64 and arm64 (Debian/Ubuntu).',
+    x64: 'For 64-bit Linux. A .deb package (Debian/Ubuntu).',
+    arm64: 'For ARM Linux. A .deb package (Debian/Ubuntu).',
+  },
+  pt: {
+    both: 'Pacote .deb para amd64 e arm64 (Debian/Ubuntu).',
+    x64: 'Para Linux de 64 bits. Pacote .deb (Debian/Ubuntu).',
+    arm64: 'Para Linux em ARM. Pacote .deb (Debian/Ubuntu).',
+  },
 };
 
-const linuxDebAmd64 = {
-  en: `A .deb package (Debian/Ubuntu). Install with ${aptAmd64}.`,
-  pt: `Pacote .deb (Debian/Ubuntu). Instale com ${aptAmd64}.`,
+const linuxFallback = {
+  en: 'Install the .deb you downloaded with `sudo apt install ./` followed by the file name.',
+  pt: 'Instale o .deb que você baixou com `sudo apt install ./` seguido do nome do arquivo.',
 };
 
-const linuxDebArm64 = {
-  en: `A .deb package (Debian/Ubuntu). Install with ${aptArm64}.`,
-  pt: `Pacote .deb (Debian/Ubuntu). Instale com ${aptArm64}.`,
-};
+const linuxInstallWith = { en: 'Install with', pt: 'Instale com' };
+const linuxInstallOr = { en: 'or', pt: 'ou' };
 
 function withNote(lead, note) {
   return `${lead} ${note}`;
@@ -110,6 +113,10 @@ export const copy = {
       download: 'Download {label}',
       checksum: 'Verify downloads (SHA256SUMS)',
       checksumNote: 'SHA256SUMS is published in the same release, so it detects corrupted downloads, not a compromised release.',
+      linuxLead: linuxLead.en,
+      linuxInstallWith: linuxInstallWith.en,
+      linuxInstallOr: linuxInstallOr.en,
+      linuxFallback: linuxFallback.en,
       os: { macos: 'macOS', windows: 'Windows', linux: 'Linux' },
       detail: {
         macos: withNote('For Apple Silicon and Intel Macs.', macFirstOpen.en),
@@ -118,9 +125,9 @@ export const copy = {
         windows: winZip.en,
         windows_arm64: withNote('For Windows on ARM.', winZip.en),
         windows_x64: withNote('For 64-bit Windows.', winZip.en),
-        linux: linuxDeb.en,
-        linux_arm64: withNote('For ARM Linux.', linuxDebArm64.en),
-        linux_x64: withNote('For 64-bit Linux.', linuxDebAmd64.en),
+        linux: `${linuxLead.en.both} ${linuxFallback.en}`,
+        linux_arm64: `${linuxLead.en.arm64} ${linuxFallback.en}`,
+        linux_x64: `${linuxLead.en.x64} ${linuxFallback.en}`,
       },
     },
   },
@@ -203,6 +210,10 @@ export const copy = {
       download: 'Baixar {label}',
       checksum: 'Conferir os downloads (SHA256SUMS)',
       checksumNote: 'O SHA256SUMS é publicado no mesmo release, então detecta downloads corrompidos, não um release comprometido.',
+      linuxLead: linuxLead.pt,
+      linuxInstallWith: linuxInstallWith.pt,
+      linuxInstallOr: linuxInstallOr.pt,
+      linuxFallback: linuxFallback.pt,
       os: { macos: 'macOS', windows: 'Windows', linux: 'Linux' },
       detail: {
         macos: withNote('Para Mac com Apple Silicon e Intel.', macFirstOpen.pt),
@@ -211,9 +222,9 @@ export const copy = {
         windows: winZip.pt,
         windows_arm64: withNote('Para Windows em ARM.', winZip.pt),
         windows_x64: withNote('Para Windows de 64 bits.', winZip.pt),
-        linux: linuxDeb.pt,
-        linux_arm64: withNote('Para Linux em ARM.', linuxDebArm64.pt),
-        linux_x64: withNote('Para Linux de 64 bits.', linuxDebAmd64.pt),
+        linux: `${linuxLead.pt.both} ${linuxFallback.pt}`,
+        linux_arm64: `${linuxLead.pt.arm64} ${linuxFallback.pt}`,
+        linux_x64: `${linuxLead.pt.x64} ${linuxFallback.pt}`,
       },
     },
   },

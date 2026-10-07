@@ -5,9 +5,11 @@ import { build, renderChecksum, renderDownloadResult, renderNoscript } from './b
 import { copy } from './copy.mjs';
 import { inlineCodeSegments } from './inline-code.mjs';
 import {
+  aptInstallCommands,
   archFromSignals,
   checksumUrl,
   detectDesktopOs,
+  linuxDetail,
   selectDownloads,
   validateManifest,
 } from './downloads-logic.mjs';
@@ -272,6 +274,8 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   assert.match(pt, /pode avisar/);
   assert.doesNotMatch(en, /tokengotchi_\*\.deb/);
   assert.doesNotMatch(pt, /tokengotchi_\*\.deb/);
+  assert.doesNotMatch(en, /<version>|&lt;version&gt;|\\u003cversion/);
+  assert.doesNotMatch(pt, /<version>|&lt;version&gt;|\\u003cversion/);
 
   await assert.rejects(access(new URL('./dist/en/downloads.json', import.meta.url)));
   await assert.rejects(access(new URL('./dist/pt/assets/estagio-ovo.png', import.meta.url)));
@@ -280,24 +284,56 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   await access(new URL('./dist/inline-code.mjs', import.meta.url));
 });
 
-test('apt commands are per-arch code spans and stay version-agnostic', () => {
-  const expected = {
+test('apt commands use the deb basename and fall back without a placeholder', () => {
+  const release = (name) => `https://github.com/acme/tokengotchi/releases/download/v9.9.9/${name}`;
+  const manifest = {
     linux: [
-      'sudo apt install ./tokengotchi_<version>_amd64.deb',
-      'sudo apt install ./tokengotchi_<version>_arm64.deb',
+      { label: 'Debian (x64)', url: release('tokengotchi_0.5.1_amd64.deb'), arch: 'x64' },
+      { label: 'Debian (arm64)', url: release('tokengotchi_0.5.1_arm64.deb'), arch: 'arm64' },
     ],
-    linux_x64: ['sudo apt install ./tokengotchi_<version>_amd64.deb'],
-    linux_arm64: ['sudo apt install ./tokengotchi_<version>_arm64.deb'],
   };
+  assert.deepEqual(aptInstallCommands(manifest.linux), [
+    'sudo apt install ./tokengotchi_0.5.1_amd64.deb',
+    'sudo apt install ./tokengotchi_0.5.1_arm64.deb',
+  ]);
+  assert.deepEqual(aptInstallCommands([{ url: release('tokengotchi_<version>_amd64.deb') }]), []);
+  assert.deepEqual(aptInstallCommands([{ url: release('not safe.deb') }]), []);
+  assert.deepEqual(aptInstallCommands([{ url: 'http://example.com/tokengotchi_0.5.1_amd64.deb' }]), [
+    'sudo apt install ./tokengotchi_0.5.1_amd64.deb',
+  ]);
+
   for (const locale of ['en', 'pt']) {
-    for (const [key, commands] of Object.entries(expected)) {
-      const text = copy[locale].ui.detail[key];
-      assert.doesNotMatch(text, /\*\.deb/);
-      assert.doesNotMatch(text, /0\.5\.\d/);
-      const codes = inlineCodeSegments(text).filter((part) => part.code).map((part) => part.value);
-      assert.deepEqual(codes, commands);
+    const page = copy[locale].ui;
+    const both = linuxDetail(page, manifest.linux);
+    const codes = inlineCodeSegments(both).filter((part) => part.code).map((part) => part.value);
+    assert.deepEqual(codes, [
+      'sudo apt install ./tokengotchi_0.5.1_amd64.deb',
+      'sudo apt install ./tokengotchi_0.5.1_arm64.deb',
+    ]);
+    assert.doesNotMatch(both, /[<>]/);
+    const x64 = linuxDetail(page, [manifest.linux[0]]);
+    assert.deepEqual(inlineCodeSegments(x64).filter((part) => part.code).map((part) => part.value), [
+      'sudo apt install ./tokengotchi_0.5.1_amd64.deb',
+    ]);
+    assert.match(x64, locale === 'en' ? /For 64-bit Linux/ : /Para Linux de 64 bits/);
+    const arm = linuxDetail(page, [manifest.linux[1]]);
+    assert.deepEqual(inlineCodeSegments(arm).filter((part) => part.code).map((part) => part.value), [
+      'sudo apt install ./tokengotchi_0.5.1_arm64.deb',
+    ]);
+
+    for (const missing of [undefined, null, [], {}]) {
+      const fallback = linuxDetail(page, missing);
+      assert.equal(fallback, page.detail.linux);
+      assert.doesNotMatch(fallback, /[<>]/);
+      assert.doesNotMatch(fallback, /<version>|&lt;version&gt;|\bversion\b/i);
+      const fallbackCodes = inlineCodeSegments(fallback).filter((part) => part.code).map((part) => part.value);
+      assert.deepEqual(fallbackCodes, ['sudo apt install ./']);
     }
+    assert.equal(linuxDetail(page, [{ label: 'Nope', url: release('tokengotchi_<version>_amd64.deb'), arch: 'x64' }]), page.detail.linux_x64);
+    assert.doesNotMatch(JSON.stringify(page), /<version>|&lt;version&gt;/);
   }
+  assert.doesNotMatch(JSON.stringify(copy), /<version>|&lt;version&gt;/);
+
   const sample = renderChecksum('en', {
     macos: [{ label: 'A', url: 'https://github.com/acme/tokengotchi/releases/download/v9.9.9/a.dmg' }],
     windows: [{ label: 'B', url: 'https://github.com/acme/tokengotchi/releases/download/v9.9.9/b.zip' }],

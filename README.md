@@ -111,10 +111,14 @@ Vá em **[Downloads (Releases)](../../releases/latest)** e baixe **um** arquivo:
 | --- | --- |
 | **Mac com chip Apple** (M1, M2, M3, M4) | **`-arm64.dmg`** |
 | **Mac Intel** | **`-x64.dmg`** |
-| **Windows** (a maioria dos PCs) | **`-Setup-<versão>-x64.exe`** |
-| **Windows em ARM** | **`-Setup-<versão>-arm64.exe`** |
+| **Windows** (a maioria dos PCs) | **`-win.zip`** |
+| **Windows em ARM** | **`-arm64-win.zip`** |
 | **Ubuntu / Linux Mint / Debian** | **`_amd64.deb`** |
-| **Outro Linux** | **`.AppImage`** |
+| **Ubuntu / Debian em ARM** | **`_arm64.deb`** |
+
+> A v0.5.0 traz só o `.zip` no Windows e só o `.deb` no Linux. Ela **não** tem o
+> instalador `-Setup-<versão>.exe` nem o `.AppImage`. Em outra distribuição Linux,
+> por enquanto, compile a partir do código (veja [Compilando do código](#compilando-do-código)).
 
 Os nomes trazem o número da versão (por exemplo `Tokengotchi-0.5.0-arm64.dmg`),
 que muda a cada lançamento — o que importa é a terminação.
@@ -123,7 +127,7 @@ No Mac, o menu Apple → *Sobre este Mac* diz qual arquivo baixar. Se aparecer
 **Chip** Apple, use o `-arm64.dmg`. Se aparecer **Processador** Intel, use o
 `-x64.dmg`.
 
-No Windows, quase todo PC é x64: baixe o `-x64.exe`. O `-arm64.exe` é só para
+No Windows, quase todo PC é x64: baixe o `-win.zip`. O `-arm64-win.zip` é só para
 quando *Configurações → Sistema → Sobre* disser que o tipo de sistema é ARM.
 
 ### 2. Instale
@@ -132,14 +136,13 @@ quando *Configurações → Sistema → Sobre* disser que o tipo de sistema é A
 bichinho e uma pasta chamada *Applications*. **Arraste o bichinho para cima dessa
 pasta.** Pronto, pode fechar a janela.
 
-**No Windows:** dê dois cliques no arquivo `.exe` que você baixou e espere. Ele se
-instala sozinho e abre no final. Não faz perguntas.
+**No Windows:** clique com o botão direito no `.zip` que você baixou → *Extrair
+tudo…* e escolha uma pasta sua (por exemplo *Documentos\Tokengotchi*). Dentro
+dela, dê dois cliques em **`Tokengotchi.exe`**. Não tem instalador: o app roda
+dessa pasta, então não apague nem mova a pasta depois. Se quiser, crie um atalho
+para o `Tokengotchi.exe`.
 
 **No Ubuntu/Debian:** dê dois cliques no arquivo `.deb` e clique em *Instalar*.
-
-**Outro Linux:** clique com o botão direito no `.AppImage` → *Propriedades* →
-*Permissões* → marque **"Permitir execução como programa"**. Depois é só dar dois
-cliques.
 
 ### 3. Na primeira vez, seu computador vai desconfiar
 
@@ -147,14 +150,35 @@ Isso é esperado e **não é vírus**. Acontece porque publicar um app "carimbad
 Apple ou pela Microsoft custa uma assinatura anual paga, que este projeto não tem.
 O código-fonte está todo aqui nesta página, aberto para qualquer um conferir.
 
-**No Mac**, vai aparecer um aviso dizendo que não foi possível verificar o app.
+**No Mac**, o app tem assinatura *ad-hoc* e **não é notarizado** pela Apple
+(a notarização exige a conta paga de desenvolvedor). Por isso, na primeira vez, o
+macOS avisa que não conseguiu verificar o app.
+
+No **macOS 14 (Sonoma) ou anterior**:
 
 1. Abra a pasta **Aplicativos**
 2. Clique no **Tokengotchi** com o **botão direito** (ou segure `Control` e clique)
 3. Escolha **Abrir**
 4. No aviso que aparecer, clique em **Abrir** de novo
 
+No **macOS 15 (Sequoia) ou mais novo**, o clique direito → *Abrir* não libera
+mais o app. Faça assim:
+
+1. Dê dois cliques no **Tokengotchi** em **Aplicativos**. No aviso, clique em
+   **Concluído** (não em *Mover para o Lixo*)
+2. Abra **Ajustes do Sistema → Privacidade e Segurança** (*System Settings →
+   Privacy & Security*)
+3. Role até a seção **Segurança**: vai aparecer uma linha dizendo que o
+   Tokengotchi foi bloqueado. Clique em **Abrir Mesmo Assim** (*Open Anyway*)
+4. Confirme em **Abrir Mesmo Assim** e digite sua senha (ou use o Touch ID) se
+   pedir
+
 Só precisa fazer isso **uma vez**. Depois ele abre normalmente com dois cliques.
+
+> **Apareceu "o Tokengotchi está danificado e não pode ser aberto"?** Você tem um
+> arquivo da v0.5.0 baixado antes da correção da assinatura. Apague esse app,
+> baixe o `.dmg` de novo em **[Releases](../../releases/latest)** e siga os passos
+> acima. Não é preciso usar o Terminal nem desligar nenhuma proteção do macOS.
 
 **No Windows**, pode aparecer uma tela azul escrito *"O Windows protegeu o seu
 computador"*.
@@ -203,10 +227,9 @@ nela. Você continua com o mesmo bichinho e com as calorias que ele já acumulou
 
 | Sistema | O que fazer |
 | --- | --- |
-| **Mac** | Baixe o `.dmg` novo e arraste para *Applications* de novo. Ele pergunta se quer substituir — diga que sim. |
-| **Windows** | Rode o novo `-Setup-<versão>-x64.exe` (ou `-arm64.exe` num PC ARM). Ele atualiza sozinho, por cima. |
-| **Ubuntu/Debian** | Dê dois cliques no `.deb` novo, ou `sudo dpkg -i tokengotchi_<versão>_amd64.deb`. |
-| **Outro Linux** | Substitua o `.AppImage` antigo pelo novo. |
+| **Mac** | Baixe o `.dmg` novo e arraste para *Applications* de novo. Ele pergunta se quer substituir — diga que sim. Se o aviso da primeira vez voltar, repita o [passo 3](#3-na-primeira-vez-seu-computador-vai-desconfiar). |
+| **Windows** | Extraia o `-win.zip` novo (ou `-arm64-win.zip` num PC ARM) por cima da pasta antiga, substituindo os arquivos, e abra o `Tokengotchi.exe` dela. |
+| **Ubuntu/Debian** | Dê dois cliques no `.deb` novo, ou `sudo dpkg -i tokengotchi_<versão>_amd64.deb` (`_arm64.deb` em ARM). |
 
 **Feche o Tokengotchi antes de instalar** (menu do ícone perto do relógio →
 *Sair*), instale, e abra de novo.
@@ -249,6 +272,11 @@ mise exec -- npm run dist:mac     # .dmg + .zip (x64 e arm64, separados)
 mise exec -- npm run dist:win     # instalador .exe + .zip (x64 e arm64, separados)
 mise exec -- npm run dist:linux   # .AppImage + .deb (x64 e arm64)
 ```
+
+O build local gera também o instalador `-Setup-<versão>.exe` e o `.AppImage`,
+mas nem toda versão publicada os traz: a v0.5.0 saiu só com os `.zip` do Windows
+e os `.deb` do Linux. A página de [Releases](../../releases/latest) mostra o que
+cada versão tem.
 
 Os três compilam a partir de qualquer sistema — o electron-builder baixa a
 toolchain do NSIS sozinho, então o instalador do Windows sai até de um Mac. Ainda

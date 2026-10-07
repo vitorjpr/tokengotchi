@@ -63,6 +63,8 @@
     "mac": {
       "category": "public.app-category.entertainment",
       "artifactName": "${productName}-${version}-${arch}-${os}.${ext}",
+      "identity": "-",
+      "hardenedRuntime": false,
       "target": [
         {
           "target": "dmg",

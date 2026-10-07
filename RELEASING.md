@@ -116,9 +116,26 @@ isso e o build nem começa. Rode `npm version`, commite e refaça a tag.
 
 ## Assinatura
 
-Nenhum build é assinado — nem no macOS (exige Apple Developer Program, pago)
-nem no Windows (exige certificado de code signing). Por isso os sistemas
+Nenhum build tem certificado — nem no macOS (exige Apple Developer Program,
+pago) nem no Windows (exige certificado de code signing). Por isso os sistemas
 avisam na primeira abertura, e o README explica o passo a passo para o usuário.
+
+No macOS o app sai com **assinatura ad-hoc** (`build.mac.identity: "-"`,
+`hardenedRuntime: false`). Sem ela, o `.app` ficava só com a assinatura de
+linker do binário do Electron, sem selar os recursos do bundle; baixado pelo
+navegador (com quarentena), o macOS dizia que o app estava **danificado** e
+mandava para o Lixo. Com a ad-hoc, `codesign --verify --deep --strict` passa e
+o aviso volta a ser o normal de app não notarizado (clique direito → Abrir, ou
+Ajustes → Privacidade e Segurança → Abrir Mesmo Assim). O hardened runtime fica
+desligado porque, com assinatura ad-hoc, a validação de biblioteca impediria o
+app de abrir.
+
+Conferir antes de publicar:
+
+```bash
+codesign --verify --deep --strict --verbose=2 dist/mac-arm64/Tokengotchi.app
+codesign --verify --deep --strict --verbose=2 dist/mac/Tokengotchi.app
+```
 
 Se um dia houver certificado, ele entra como secret do repositório e o
 `CSC_IDENTITY_AUTO_DISCOVERY: false` do workflow sai.

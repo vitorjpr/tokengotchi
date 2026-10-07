@@ -1,21 +1,29 @@
 const macFirstOpen = {
-  en: 'The app is ad-hoc signed and not notarized, so on first launch right-click (or Control-click) the app and choose Open. On macOS Sequoia (15+), go to System Settings → Privacy & Security → Open Anyway.',
-  pt: 'O app é assinado ad-hoc e não é notarizado. Na primeira abertura, clique com o botão direito (ou Control-clique) no app e escolha Abrir. No macOS Sequoia (15+), vá em Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim.',
+  en: 'The app is ad-hoc signed and not notarized. On earlier macOS versions, right-click (or Control-click) the app and choose Open. On macOS Sequoia (15+), first try to open the app, choose "Done" on the warning dialog, then go to System Settings → Privacy & Security → Open Anyway.',
+  pt: 'O app é assinado ad-hoc e não é notarizado. Em versões anteriores do macOS, clique com o botão direito (ou segure Control e clique) no app e escolha Abrir. No macOS Sequoia (15+), primeiro tente abrir o app, escolha "Concluído" no aviso e depois vá em Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim.',
 };
 
 const winZip = {
   en: 'A .zip. Extract it and run Tokengotchi.exe. The app is unsigned, so Windows SmartScreen may warn: click "More info", then "Run anyway".',
-  pt: 'É um arquivo .zip. Extraia e execute Tokengotchi.exe. O app não é assinado, então no SmartScreen clique em "Mais informações" → "Executar assim mesmo".',
+  pt: 'É um arquivo .zip. Extraia e execute Tokengotchi.exe. O app não é assinado, então o SmartScreen pode avisar: clique em "Mais informações" e depois em "Executar assim mesmo".',
 };
+
+const aptAmd64 = '`sudo apt install ./tokengotchi_<version>_amd64.deb`';
+const aptArm64 = '`sudo apt install ./tokengotchi_<version>_arm64.deb`';
 
 const linuxDeb = {
-  en: 'A .deb package for amd64 and arm64 (Debian/Ubuntu). Install with sudo apt install ./tokengotchi_*.deb',
-  pt: 'Pacote .deb para amd64 e arm64 (Debian/Ubuntu). Instale com sudo apt install ./tokengotchi_*.deb',
+  en: `A .deb package for amd64 and arm64 (Debian/Ubuntu). Install with ${aptAmd64} or ${aptArm64}.`,
+  pt: `Pacote .deb para amd64 e arm64 (Debian/Ubuntu). Instale com ${aptAmd64} ou ${aptArm64}.`,
 };
 
-const linuxDebArch = {
-  en: 'A .deb package (Debian/Ubuntu). Install with sudo apt install ./tokengotchi_*.deb',
-  pt: 'Pacote .deb (Debian/Ubuntu). Instale com sudo apt install ./tokengotchi_*.deb',
+const linuxDebAmd64 = {
+  en: `A .deb package (Debian/Ubuntu). Install with ${aptAmd64}.`,
+  pt: `Pacote .deb (Debian/Ubuntu). Instale com ${aptAmd64}.`,
+};
+
+const linuxDebArm64 = {
+  en: `A .deb package (Debian/Ubuntu). Install with ${aptArm64}.`,
+  pt: `Pacote .deb (Debian/Ubuntu). Instale com ${aptArm64}.`,
 };
 
 function withNote(lead, note) {
@@ -101,6 +109,7 @@ export const copy = {
       comingSoon: 'Public downloads for {os} are coming soon.',
       download: 'Download {label}',
       checksum: 'Verify downloads (SHA256SUMS)',
+      checksumNote: 'SHA256SUMS is published in the same release, so it detects corrupted downloads, not a compromised release.',
       os: { macos: 'macOS', windows: 'Windows', linux: 'Linux' },
       detail: {
         macos: withNote('For Apple Silicon and Intel Macs.', macFirstOpen.en),
@@ -110,8 +119,8 @@ export const copy = {
         windows_arm64: withNote('For Windows on ARM.', winZip.en),
         windows_x64: withNote('For 64-bit Windows.', winZip.en),
         linux: linuxDeb.en,
-        linux_arm64: withNote('For ARM Linux.', linuxDebArch.en),
-        linux_x64: withNote('For 64-bit Linux.', linuxDebArch.en),
+        linux_arm64: withNote('For ARM Linux.', linuxDebArm64.en),
+        linux_x64: withNote('For 64-bit Linux.', linuxDebAmd64.en),
       },
     },
   },
@@ -193,6 +202,7 @@ export const copy = {
       comingSoon: 'Os downloads públicos para {os} chegam em breve.',
       download: 'Baixar {label}',
       checksum: 'Conferir os downloads (SHA256SUMS)',
+      checksumNote: 'O SHA256SUMS é publicado no mesmo release, então detecta downloads corrompidos, não um release comprometido.',
       os: { macos: 'macOS', windows: 'Windows', linux: 'Linux' },
       detail: {
         macos: withNote('Para Mac com Apple Silicon e Intel.', macFirstOpen.pt),
@@ -202,8 +212,8 @@ export const copy = {
         windows_arm64: withNote('Para Windows em ARM.', winZip.pt),
         windows_x64: withNote('Para Windows de 64 bits.', winZip.pt),
         linux: linuxDeb.pt,
-        linux_arm64: withNote('Para Linux em ARM.', linuxDebArch.pt),
-        linux_x64: withNote('Para Linux de 64 bits.', linuxDebArch.pt),
+        linux_arm64: withNote('Para Linux em ARM.', linuxDebArm64.pt),
+        linux_x64: withNote('Para Linux de 64 bits.', linuxDebAmd64.pt),
       },
     },
   },

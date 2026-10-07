@@ -48,8 +48,10 @@ export function renderDownloadResult(locale, manifest) {
 export function renderChecksum(locale, manifest) {
   const url = checksumUrl(manifest);
   if (!url) return '';
-  const label = copy[locale].ui.checksum;
-  return `<p class="download-verify"><a href="${escapeHtml(url)}">${escapeHtml(label)}</a></p>`;
+  const { checksum, checksumNote } = copy[locale].ui;
+  const link = `<p class="download-verify"><a href="${escapeHtml(url)}">${escapeHtml(checksum)}</a></p>`;
+  if (!checksumNote) return link;
+  return `${link}<p class="checksum-note">${escapeHtml(checksumNote)}</p>`;
 }
 
 export function renderNoscript(locale, manifest) {
@@ -135,7 +137,7 @@ export async function build() {
 
   await writeFile(new URL('./index.html', output), rootPage());
   await writeFile(new URL('./_redirects', output), '/en /en/ 301\n/pt /pt/ 301\n');
-  for (const file of ['styles.css', 'app.js', 'downloads.json', 'negotiate.mjs', 'downloads-logic.mjs', 'assets']) {
+  for (const file of ['styles.css', 'app.js', 'downloads.json', 'negotiate.mjs', 'downloads-logic.mjs', 'inline-code.mjs', 'assets']) {
     await cp(new URL(file, root), new URL(file, output), { recursive: true });
   }
   console.log('Static site built in site/dist');

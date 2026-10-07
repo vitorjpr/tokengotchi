@@ -2,5 +2,9 @@
   "name": "tokengotchi-site",
   "private": true,
   "type": "module",
-  "scripts": { "build": "node build.mjs", "dev": "python3 -m http.server 4173 --bind 127.0.0.1" }
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs && node dev-server.mjs",
+    "test": "node --test"
+  }
 }

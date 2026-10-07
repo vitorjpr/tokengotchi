@@ -1,43 +1,107 @@
-const platforms = {
-  macos: { name: 'macOS', detail: 'For Apple Silicon and Intel Macs.' },
-  windows: { name: 'Windows', detail: 'Choose the installer for your Windows PC.' },
-  linux: { name: 'Linux', detail: 'AppImage and Debian packages, when available.' },
-};
-const ua = navigator.userAgent;
-const detected = /Android|iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  ? null : /Mac/i.test(ua) ? 'macos' : /Windows/i.test(ua) ? 'windows' : /Linux/i.test(ua) ? 'linux' : null;
+import { archFromSignals, detectDesktopOs, selectDownloads } from './downloads-logic.mjs';
+import { LOCALE_COOKIE } from './negotiate.mjs';
+
+const ui = JSON.parse(document.querySelector('#ui-copy').textContent);
+const locale = document.documentElement.dataset.locale === 'pt' ? 'pt' : 'en';
+document.cookie = `${LOCALE_COOKIE}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax`;
+
+function syncLanguageLinks() {
+  for (const link of document.querySelectorAll('[data-switch]')) {
+    const target = link.dataset.switch === 'pt' ? 'pt' : 'en';
+    const url = new URL(`/${target}/`, location.origin);
+    url.search = location.search;
+    url.hash = location.hash;
+    link.href = `${url.pathname}${url.search}${url.hash}`;
+  }
+}
+
+syncLanguageLinks();
+addEventListener('hashchange', syncLanguageLinks);
+
+const detected = detectDesktopOs(navigator.userAgent, {
+  platform: navigator.platform,
+  maxTouchPoints: navigator.maxTouchPoints || 0,
+});
+let cpuArch = archFromSignals({ userAgent: navigator.userAgent });
 let selected = detected || 'macos';
 let downloads = {};
 const result = document.querySelector('#download-result');
+const detail = document.querySelector('#download-detail');
+
+function detailText(os, entries) {
+  const archs = new Set(entries.map((entry) => entry.arch));
+  if (entries.length === 0) return ui.detail[os];
+  if (archs.size === 1 && !archs.has('universal')) return ui.detail[`${os}_${[...archs][0]}`] || ui.detail[os];
+  return ui.detail[os];
+}
+
 function render() {
-  document.querySelectorAll('[data-os]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.os === selected)));
-  document.querySelector('#download-detail').textContent = platforms[selected].detail;
+  document.querySelectorAll('[data-os]').forEach((button) => {
+    button.setAttribute('aria-pressed', String(button.dataset.os === selected));
+  });
+  const arch = selected === detected ? cpuArch : null;
+  const entries = selectDownloads(downloads[selected], arch);
+  detail.textContent = detailText(selected, entries);
   result.replaceChildren();
-  const entries = Array.isArray(downloads[selected]) ? downloads[selected] : [];
   for (const entry of entries) {
-    if (typeof entry.label !== 'string' || typeof entry.url !== 'string') continue;
-    let url;
-    try { url = new URL(entry.url); } catch { continue; }
-    if (url.protocol !== 'https:') continue;
     const link = document.createElement('a');
     link.className = 'button';
-    link.href = url.href;
-    link.textContent = `Download ${entry.label} ↓`;
+    link.href = entry.url;
+    link.textContent = ui.download.replaceAll('{label}', entry.label);
     result.append(link);
   }
   if (!result.childElementCount) {
     const notice = document.createElement('p');
     notice.className = 'availability';
-    notice.textContent = `Public downloads for ${platforms[selected].name} are coming soon.`;
+    notice.textContent = ui.comingSoon.replaceAll('{os}', ui.os[selected]);
     result.append(notice);
   }
 }
-if (detected) document.querySelector('#hero-download').textContent = `Get Tokengotchi for ${platforms[detected].name}`;
-document.querySelectorAll('[data-os]').forEach(button => button.addEventListener('click', () => { selected = button.dataset.os; render(); }));
-document.querySelector('#year').textContent = new Date().getFullYear();
+
+const hero = document.querySelector('#hero-download');
+hero.textContent = detected ? ui.heroCtaFor.replaceAll('{os}', ui.os[detected]) : ui.heroCta;
+
+document.querySelectorAll('[data-os]').forEach((button) => {
+  button.addEventListener('click', () => {
+    selected = button.dataset.os;
+    render();
+  });
+});
+
+document.querySelector('#year').textContent = String(new Date().getFullYear());
 render();
-try {
-  const response = await fetch('./downloads.json');
-  if (response.ok) downloads = await response.json() || {};
-} catch { /* The coming-soon state remains available offline. */ }
+
+async function loadDownloads() {
+  try {
+    const response = await fetch('/downloads.json');
+    if (response.ok) downloads = (await response.json()) || {};
+  } catch {
+    /* Coming soon stays available offline. */
+  }
+}
+
+async function refineArch() {
+  let architecture = '';
+  let renderer = '';
+  try {
+    if (navigator.userAgentData?.getHighEntropyValues) {
+      const hints = await navigator.userAgentData.getHighEntropyValues(['architecture']);
+      architecture = hints.architecture || '';
+    }
+  } catch {
+    /* Client hints are optional. */
+  }
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl');
+    const extension = gl?.getExtension('WEBGL_debug_renderer_info');
+    if (gl && extension) renderer = gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) || '';
+  } catch {
+    /* A missing renderer string just leaves both architectures visible. */
+  }
+  const next = archFromSignals({ userAgent: navigator.userAgent, architecture, renderer });
+  if (next) cpuArch = next;
+}
+
+await Promise.all([loadDownloads(), refineArch()]);
 render();

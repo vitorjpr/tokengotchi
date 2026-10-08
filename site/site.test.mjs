@@ -6,10 +6,18 @@ import { copy } from './copy.mjs';
 import { inlineCodeSegments } from './inline-code.mjs';
 import {
   aptInstallCommands,
+  aptInstallPlans,
   archFromSignals,
   checksumUrl,
   detectDesktopOs,
+  downloadView,
+  formatReleaseDate,
+  formatSize,
+  heroAction,
+  heroMetaLine,
   linuxDetail,
+  listDownloads,
+  releaseNotesUrl,
   selectDownloads,
   validateManifest,
 } from './downloads-logic.mjs';
@@ -130,45 +138,47 @@ test('download selection stays compatible with empty arrays and https-only arch 
 
 test('required lines stay in both languages and avoid a paid tier', () => {
   assert.equal(copy.en.heroTitleHtml.includes('Your tokens.'), true);
-  assert.match(copy.en.heroTitleHtml, /A little <span>life\.<\/span>/);
-  assert.equal(copy.en.intro, 'Meet the desktop pet that feeds on your AI usage. You build things. It grows up.');
-  assert.equal(copy.en.micro, 'Free to use. Yours to look after.');
-  assert.equal(copy.en.ui.heroCta, 'Get Tokengotchi');
-  assert.equal(copy.en.ui.heroCtaFor, 'Get Tokengotchi for {os}');
-  assert.equal(copy.en.how1Title, 'Just keep building.');
-  assert.equal(copy.en.how2Title, 'A little more alive.');
-  assert.equal(copy.en.how3Title, 'Room for real life.');
-  assert.equal(copy.en.privacyTitle, 'Your work stays yours.');
-  assert.match(copy.en.privacyBodyHtml, /The app only checks GitHub for new releases — and you can turn that off\./);
+  assert.match(copy.en.heroTitleHtml, /A little <em>life\.<\/em>/);
+  assert.equal(copy.en.heroSub, 'A pixel pet that lives on your desktop and feeds on your AI usage. You build things. It grows up.');
+  assert.equal(copy.en.freeLine, 'Free, MIT-licensed');
+  assert.equal(copy.en.ui.heroCta, 'Download');
+  assert.equal(copy.en.ui.ctaFor, 'Download for {os}');
+  assert.equal(copy.en.ui.ctaMobile, 'Get it on your computer');
+  assert.equal(copy.en.feedTitleHtml, 'You do your thing.<br>It does its little thing.');
+  assert.match(copy.en.feed3Body, /Output tokens count more than cached ones/);
+  assert.match(copy.en.livesBody, /Disappear for more than about 3½ days and it dies/);
+  assert.equal(copy.en.privTitle, 'Your work stays yours.');
+  assert.equal(copy.en.privBody, 'Usage is read on your device. Logs and pet data stay there. The app only checks GitHub for new releases, and you can turn that off.');
+  assert.match(copy.en.trustHtml, /Stays on your machine\./);
+  assert.match(copy.en.trustHtml, /optional GitHub release check/);
   assert.equal(copy.en.navHow, 'How it works');
   assert.equal(copy.en.navEvolution, 'Evolution');
-  assert.equal(copy.en.navDownload, 'Get the app');
+  assert.equal(copy.en.navDownload, 'Download');
   assert.equal(copy.en.footerTag, 'Built with tokens. Raised with love.');
   assert.equal(copy.en.ui.comingSoon, 'Public downloads for {os} are coming soon.');
 
   assert.match(copy.pt.heroTitleHtml, /Seus tokens\./);
-  assert.match(copy.pt.heroTitleHtml, /pequenina\./);
-  assert.equal(copy.pt.intro, 'O bichinho de estimação que mora na tela e se alimenta do que você gasta com IA. Você cria. Ele cresce.');
-  assert.equal(copy.pt.micro, 'Grátis. Seu para cuidar.');
-  assert.equal(copy.pt.ui.heroCta, 'Baixar o Tokengotchi');
-  assert.equal(copy.pt.ui.heroCtaFor, 'Baixar o Tokengotchi para {os}');
-  assert.equal(copy.pt.how1Title, 'Continue criando.');
-  assert.equal(copy.pt.how2Title, 'Um pouco mais vivo.');
-  assert.equal(copy.pt.how3Title, 'Espaço para a vida real.');
-  assert.equal(copy.pt.privacyTitle, 'Seu trabalho fica com você.');
-  assert.match(copy.pt.privacyBodyHtml, /A única rede é checar releases no GitHub — e dá para desligar\./);
+  assert.match(copy.pt.heroTitleHtml, /<em>pequenina\.<\/em>/);
+  assert.equal(copy.pt.heroSub, 'Um bichinho pixelado que mora na sua tela e se alimenta do que você gasta com IA. Você cria. Ele cresce.');
+  assert.equal(copy.pt.freeLine, 'Grátis, licença MIT');
+  assert.equal(copy.pt.ui.heroCta, 'Baixar');
+  assert.equal(copy.pt.ui.ctaFor, 'Baixar para {os}');
+  assert.equal(copy.pt.ui.ctaMobile, 'Baixe no computador');
+  assert.equal(copy.pt.feedTitleHtml, 'Você faz a sua parte.<br>Ele faz a dele.');
+  assert.match(copy.pt.livesBody, /Se sumir por mais de uns 3 dias e meio, ele morre/);
+  assert.equal(copy.pt.privTitle, 'Seu trabalho fica com você.');
+  assert.equal(copy.pt.privBody, 'A leitura é na sua máquina. Logs e dados do bichinho não saem daí. A única rede é checar releases no GitHub, e dá para desligar.');
+  assert.match(copy.pt.trustHtml, /Fica na sua máquina\./);
   assert.equal(copy.pt.navHow, 'Como funciona');
   assert.equal(copy.pt.navEvolution, 'Evolução');
-  assert.equal(copy.pt.navDownload, 'Baixar o app');
+  assert.equal(copy.pt.navDownload, 'Baixar');
   assert.equal(copy.pt.footerTag, 'Feito com tokens. Criado com carinho.');
   assert.equal(copy.pt.ui.comingSoon, 'Os downloads públicos para {os} chegam em breve.');
-  assert.match(copy.pt.evoIntroHtml, /19 níveis/);
-  assert.match(copy.pt.evoIntroHtml, /9 formas/);
+  assert.match(copy.pt.evoIntro, /19 níveis/);
+  assert.match(copy.pt.evoIntro, /9 formas/);
 
   const blob = JSON.stringify(copy).toLowerCase();
   assert.doesNotMatch(blob, /premium|pricing/);
-  assert.equal(copy.en.detailMac, copy.en.ui.detail.macos);
-  assert.equal(copy.pt.detailMac, copy.pt.ui.detail.macos);
   assert.deepEqual(Object.keys(copy.en).sort(), Object.keys(copy.pt).sort());
   assert.deepEqual(Object.keys(copy.en.ui).sort(), Object.keys(copy.pt.ui).sort());
   assert.deepEqual(Object.keys(copy.en.ui.detail).sort(), Object.keys(copy.pt.ui.detail).sort());
@@ -227,7 +237,9 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
     assert.match(html, /hreflang="x-default" href="https:\/\/tokengotchi\.app\/en\/"/);
     assert.match(html, /href="\/styles\.css"/);
     assert.match(html, /src="\/app\.js"/);
-    assert.match(html, /src="\/assets\/estagio-ovo\.png"/);
+    assert.match(html, /src="\/assets\/evolucao\.png"/);
+    assert.match(html, /src="\/assets\/estagio-adulto\.png"/);
+    assert.match(html, /src="\/assets\/humor-feliz\.png"/);
     assert.equal((html.match(/aria-current="page"/g) || []).length, 1);
   }
   assert.match(en, /Your tokens\./);
@@ -279,10 +291,24 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   assert.doesNotMatch(pt, /tokengotchi_\*\.deb/);
   assert.doesNotMatch(en, /<version>|&lt;version&gt;|\\u003cversion/);
   assert.doesNotMatch(pt, /<version>|&lt;version&gt;|\\u003cversion/);
+  assert.match(en, /101\.6 MB/);
+  assert.match(pt, /101,6 MB/);
+  assert.match(en, /Oct 8, 2026/);
+  assert.match(pt, /8 out\. 2026/);
+  assert.match(en, /Tokengotchi-0\.5\.2-arm64\.dmg/);
+  assert.match(en, /Tokengotchi-0\.5\.2-x64\.dmg/);
+  assert.doesNotMatch(en, /fonts\.googleapis\.com/);
+  assert.doesNotMatch(pt, /fonts\.googleapis\.com/);
+  const css = await readFile(new URL('./dist/styles.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(css, /fonts\.googleapis\.com/);
+  assert.match(css, /image-rendering:\s*crisp-edges;\s*image-rendering:\s*pixelated/);
+  assert.doesNotMatch(css, /data-locale=.pt.[\s\S]*font-size/);
 
   await assert.rejects(access(new URL('./dist/en/downloads.json', import.meta.url)));
   await assert.rejects(access(new URL('./dist/pt/assets/estagio-ovo.png', import.meta.url)));
-  await access(new URL('./dist/assets/estagio-dragao-ancestral.png', import.meta.url));
+  await access(new URL('./dist/assets/og.png', import.meta.url));
+  await access(new URL('./dist/assets/PixelifySans-subset.woff2', import.meta.url));
+  await access(new URL('./dist/assets/OFL-PixelifySans.txt', import.meta.url));
   await access(new URL('./dist/downloads-logic.mjs', import.meta.url));
   await access(new URL('./dist/inline-code.mjs', import.meta.url));
 });
@@ -301,6 +327,16 @@ test('apt commands use the deb basename and fall back without a placeholder', ()
   ]);
   assert.deepEqual(aptInstallCommands([{ url: release('tokengotchi_<version>_amd64.deb') }]), []);
   assert.deepEqual(aptInstallCommands([{ url: release('not safe.deb') }]), []);
+  assert.deepEqual(aptInstallCommands([{
+    label: 'Debian (x64)',
+    url: release('tokengotchi_0.5.1_arm64.deb'),
+    arch: 'x64',
+  }]), []);
+  assert.deepEqual(aptInstallPlans([{
+    label: 'Debian (arm64)',
+    url: release('tokengotchi_0.5.1_amd64.deb'),
+    arch: 'arm64',
+  }]), []);
   const rejected = [
     release('tokengotchi_0.5.1_amd64.deb%3Brm'),
     release('tokengotchi_0.5.1_amd64.deb;rm'),
@@ -310,6 +346,10 @@ test('apt commands use the deb basename and fall back without a placeholder', ()
     release('tokengotchi_0.5.1_amd\n64.deb'),
     release('tokengotchi_0.5.1_amd64.deb\n'),
     release('my file.deb'),
+    release('a|b.deb'),
+    release('a&b.deb'),
+    release('a\'b.deb'),
+    release('a"b.deb'),
     release('tokengotchi_0.5.1_amd64.deb%20x'),
     'https://example.com/tokengotchi_0.5.1_amd64.deb',
     'http://github.com/vitorjpr/tokengotchi/releases/download/v0.5.1/tokengotchi_0.5.1_amd64.deb',
@@ -367,4 +407,109 @@ test('apt commands use the deb basename and fall back without a placeholder', ()
   assert.match(sample, /<p class="checksum-note">SHA256SUMS is published in the same release/);
   assert.doesNotMatch(sample, /href="[^"]+#/);
   assert.equal(renderChecksum('en', empty), '');
+});
+
+test('every architecture stays listed, and size and date render only when present', async () => {
+  const manifest = JSON.parse(await readFile(new URL('./downloads.json', import.meta.url), 'utf8'));
+  assert.deepEqual(validateManifest(manifest), []);
+  const commands = aptInstallCommands(manifest.linux);
+  assert.equal(commands.length, manifest.linux.length);
+  manifest.linux.forEach((entry, index) => {
+    assert.equal(commands[index], `sudo apt install ./${entry.url.split('/').pop()}`);
+  });
+  const sentence = linuxDetail(copy.en.ui, manifest.linux);
+  for (const command of commands) assert.ok(sentence.includes(command), command);
+  assert.doesNotMatch(sentence, /<version>/);
+
+  // Bytes from the GitHub release API for the tag named in these URLs.
+  assert.equal(manifest.macos.find((entry) => entry.arch === 'arm64').size, 106564099);
+  assert.equal(manifest.macos.find((entry) => entry.arch === 'x64').size, 111547831);
+  assert.equal(manifest.windows.find((entry) => entry.arch === 'x64').size, 133998834);
+  assert.equal(manifest.windows.find((entry) => entry.arch === 'arm64').size, 130523848);
+  assert.equal(manifest.linux.find((entry) => entry.arch === 'x64').size, 91131184);
+  assert.equal(manifest.linux.find((entry) => entry.arch === 'arm64').size, 84665716);
+
+  for (const os of ['macos', 'windows', 'linux']) {
+    const all = listDownloads(manifest[os]);
+    assert.deepEqual(all.map((entry) => entry.arch).sort(), ['arm64', 'x64']);
+    assert.equal(selectDownloads(manifest[os], 'arm64').length, 1);
+    const view = downloadView(manifest, os, {
+      detectedOs: os,
+      cpuArch: 'arm64',
+      locale: 'en',
+      ui: copy.en.ui,
+    });
+    assert.equal(view.files.length, 2);
+    assert.equal(view.files[0].arch, 'arm64');
+    assert.equal(view.files.filter((file) => file.badge).length, 1);
+    assert.ok(view.files.every((file) => file.sizeText));
+  }
+
+  const tag = manifest.macos[0].url.split('/').at(-2);
+  assert.equal(releaseNotesUrl(manifest), `https://github.com/vitorjpr/tokengotchi/releases/tag/${tag}`);
+  assert.equal(formatSize(106564099, 'en'), '101.6 MB');
+  assert.equal(formatSize(106564099, 'pt'), '101,6 MB');
+  assert.equal(formatReleaseDate('2026-10-08', 'en'), 'Oct 8, 2026');
+  assert.equal(formatReleaseDate('2026-10-08', 'pt'), '8 out. 2026');
+  assert.equal(formatReleaseDate(manifest.released, 'en'), 'Oct 8, 2026');
+
+  const bare = {
+    macos: [{ label: 'macOS · Apple Silicon', url: 'https://example.com/a.dmg', arch: 'arm64' }],
+    windows: [{ label: 'Windows · x64 (zip)', url: 'https://example.com/b.zip', arch: 'x64' }],
+    linux: [],
+  };
+  assert.deepEqual(validateManifest(bare), []);
+  const bareView = downloadView(bare, 'macos', { locale: 'en', ui: copy.en.ui });
+  assert.equal(bareView.files[0].sizeText, null);
+  assert.equal(bareView.released, null);
+  assert.equal(bareView.tag, null);
+  assert.equal(formatSize(undefined, 'en'), null);
+  assert.equal(formatReleaseDate(undefined, 'en'), null);
+  assert.ok(validateManifest({ ...bare, released: '2026-13-01' }).some((error) => error.includes('released')));
+  assert.ok(validateManifest({
+    macos: [{ label: 'A', url: 'https://example.com/a.dmg', size: 1.5 }],
+    windows: [],
+    linux: [],
+  }).some((error) => error.includes('size')));
+  assert.equal(listDownloads(bare.macos).length, 1);
+  assert.equal(listDownloads(bare.windows).length, 1);
+});
+
+test('phones get a computer path and desktops link the detected file', () => {
+  const manifest = {
+    macos: [
+      { label: 'macOS · Apple Silicon', url: 'https://example.com/arm.dmg', arch: 'arm64', size: 106564099 },
+      { label: 'macOS · Intel', url: 'https://example.com/intel.dmg', arch: 'x64', size: 111547831 },
+    ],
+    windows: [],
+    linux: [],
+  };
+  const phone = heroAction({ detectedOs: null, cpuArch: 'arm64', manifest, ui: copy.en.ui, locale: 'en' });
+  assert.equal(phone.kind, 'mobile');
+  assert.equal(phone.href, '#download');
+  assert.equal(phone.text, copy.en.ui.ctaMobile);
+  const ptPhone = heroAction({ detectedOs: null, manifest, ui: copy.pt.ui, locale: 'pt' });
+  assert.equal(ptPhone.text, copy.pt.ui.ctaMobile);
+  assert.equal(ptPhone.href, '#download');
+
+  const mac = heroAction({ detectedOs: 'macos', cpuArch: 'x64', manifest, ui: copy.en.ui, locale: 'en' });
+  assert.equal(mac.kind, 'file');
+  assert.equal(mac.href, 'https://example.com/intel.dmg');
+  assert.equal(mac.text, 'Download for macOS');
+  assert.equal(mac.sizeText, '106.4 MB');
+  assert.equal(
+    heroMetaLine({ detectedOs: 'macos', cpuArch: 'arm64', manifest, ui: copy.en.ui, locale: 'en' }),
+    'Apple Silicon · 101.6 MB · Free, MIT-licensed',
+  );
+  const unknown = heroAction({ detectedOs: 'macos', cpuArch: null, manifest, ui: copy.en.ui, locale: 'en' });
+  assert.equal(unknown.kind, 'choose');
+  assert.equal(unknown.href, '#download');
+  assert.equal(unknown.text, 'Download for macOS');
+  assert.equal(
+    heroMetaLine({ detectedOs: 'macos', cpuArch: null, manifest, ui: copy.en.ui, locale: 'en' }),
+    'Free, MIT-licensed',
+  );
+  const both = downloadView(manifest, 'macos', { detectedOs: 'macos', cpuArch: 'x64', locale: 'en', ui: copy.en.ui });
+  assert.deepEqual(both.files.map((file) => file.arch), ['x64', 'arm64']);
+  assert.equal(both.files.filter((file) => file.badge).length, 1);
 });

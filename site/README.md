@@ -52,13 +52,15 @@ The example below is the shape only. `<tag>` and `<version>` are placeholders. C
 
 `macos`, `windows`, and `linux` are arrays. They may be empty. Each entry needs `label` and `url`. `arch` is optional:
 
-| `arch` | Shown to |
+| `arch` | Means |
 | --- | --- |
-| omitted, `universal`, or `any` | Anyone on that OS, unless a matching per-arch file exists |
+| omitted, `universal`, or `any` | A build for anyone on that OS. The hero uses it when no per-arch file matches. |
 | `x64` (also `amd64`, `x86_64`, `intel`) | 64-bit Intel/AMD |
 | `arm64` (also `aarch64`, `arm`, `apple`, `apple-silicon`) | ARM, including Apple Silicon |
 
-On the visitor's own desktop OS, a matching `arch` replaces the universal file. If the CPU is unknown, or they are on a phone or iPad (those stay unclassified and the tabs simply default to macOS), a universal file is shown when one exists; otherwise every labeled arch is shown so they can choose. Opening another OS's tab lists every arch for that OS, since that machine may not be the one they are using.
+Every labeled file for an OS stays on screen. Detecting a CPU highlights that architecture and points the hero button at it. It does not hide the other files. A phone, iPad, or anything else `detectDesktopOs` leaves unclassified gets "Get it on your computer" (copy or share the link) instead of a `.dmg` or `.zip` button. The files stay one click away under "Other systems and files".
+
+`size` (bytes) on an entry and a top-level `released` (`YYYY-MM-DD`) are optional. The page prints them only when they are present, so a release that writes the older shape still builds. Do not invent either value. The release-notes link is derived from `githubReleaseBase` (`…/releases/tag/<tag>`), not fetched from the GitHub API in the browser.
 
 Labels stay language-neutral. The page supplies the verb: `Download {label}` / `Baixar {label}`.
 
@@ -66,4 +68,4 @@ Labels stay language-neutral. The page supplies the verb: `Download {label}` / `
 
 ## Artwork
 
-The PNGs in `assets/` are copies of the existing generated artwork in `docs/sprites/`. After changing the app's sprites, regenerate them using the app's workflow and refresh these copies. Fonts use Google Fonts with system fallbacks.
+The PNGs in `assets/` are transparent renders of `src/renderer/sprite.js`, drawn the same way as `scripts/make-sprites.js` but with no screen background, so they do not sit in dark squares. `scripts/make-sprites.js` itself still writes the opaque README sprites under `docs/sprites/`. The headline face is the self-hosted Pixelify Sans subset (`assets/PixelifySans-subset.woff2`) under the SIL OFL (`assets/OFL-PixelifySans.txt`). Body text uses the system sans. The page does not request Google Fonts or any other third party.

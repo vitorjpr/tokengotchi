@@ -32,11 +32,12 @@ const MOOD_COLOR = {
 function formatTokens(n) {
   // Infinity/NaN viravam "Infinitybi"/"NaN"; melhor um traço neutro.
   if (!Number.isFinite(n)) return '—';
-  // As metas dos últimos níveis passam de 1 bilhão; sem este degrau a
-  // linha do próximo nível mostrava "2624.0M".
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}bi`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  // As metas dos últimos níveis passam de 1 bilhão; sem o degrau "bi" a
+  // linha do próximo nível mostrava "2624.0M". O corte é 999.95 da unidade
+  // de baixo, não 1000 exato: toFixed(1) transformaria isso em "1000.0M".
+  if (n >= 999_950_000) return `${(n / 1_000_000_000).toFixed(1)}bi`;
+  if (n >= 999_950) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 999.5) return `${(n / 1_000).toFixed(1)}k`;
   return String(Math.round(n));
 }
 

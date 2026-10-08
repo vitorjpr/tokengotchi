@@ -1,6 +1,6 @@
 {
   "name": "tokengotchi",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Um bichinho de estimação de desktop alimentado pelos tokens que você gasta com agentes de IA.",
   "author": "Vitor Rodrigues",
   "license": "MIT",
@@ -51,6 +51,13 @@
       "config/**/*",
       "package.json"
     ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true
+    },
     "electronLanguages": [
       "en",
       "en-US",

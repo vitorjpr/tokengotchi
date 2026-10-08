@@ -60,7 +60,7 @@ The example below is the shape only. `<tag>` and `<version>` are placeholders. C
 
 Every labeled file for an OS stays on screen. Detecting a CPU highlights that architecture and points the hero button at it. It does not hide the other files. A phone, iPad, or anything else `detectDesktopOs` leaves unclassified gets "Get it on your computer" (copy or share the link) instead of a `.dmg` or `.zip` button. The files stay one click away under "Other systems and files".
 
-`size` (bytes) on an entry and a top-level `released` (`YYYY-MM-DD`) are optional. The page prints them only when they are present, so a release that writes the older shape still builds. Do not invent either value. The release-notes link is derived from `githubReleaseBase` (`…/releases/tag/<tag>`), not fetched from the GitHub API in the browser.
+`size` (bytes) on an entry and a top-level `released` (`YYYY-MM-DD`) are optional. The page prints a size as decimal megabytes (bytes / 1e6, labelled MB) and the date only when they are present, so a release that writes the older shape still builds. Do not invent either value. The release-notes link is derived from `githubReleaseBase` (`…/releases/tag/<tag>`), not fetched from the GitHub API in the browser.
 
 Labels stay language-neutral. The page supplies the verb: `Download {label}` / `Baixar {label}`.
 
@@ -68,4 +68,4 @@ Labels stay language-neutral. The page supplies the verb: `Download {label}` / `
 
 ## Artwork
 
-The PNGs in `assets/` are transparent renders of `src/renderer/sprite.js`, drawn the same way as `scripts/make-sprites.js` but with no screen background, so they do not sit in dark squares. `scripts/make-sprites.js` itself still writes the opaque README sprites under `docs/sprites/`. The headline face is the self-hosted Pixelify Sans subset (`assets/PixelifySans-subset.woff2`) under the SIL OFL (`assets/OFL-PixelifySans.txt`). Body text uses the system sans. The page does not request Google Fonts or any other third party.
+The PNGs in `assets/` are transparent renders of `src/renderer/sprite.js`, drawn the same way as `scripts/make-sprites.js` but with no screen background, so they do not sit in dark squares. `scripts/make-sprites.js` itself still writes the opaque README sprites under `docs/sprites/`. `estagio-dragao-ancestral.png` stays at its previous path so older social-card URLs keep resolving. The page's own `og:image` is `assets/og.png`. The headline face is the self-hosted Pixelify Sans subset (`assets/PixelifySans-subset.woff2`) under the SIL OFL (`assets/OFL-PixelifySans.txt`). Body text uses the system sans. The page does not request Google Fonts or any other third party.

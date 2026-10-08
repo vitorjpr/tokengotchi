@@ -427,6 +427,7 @@ html[data-device="phone"] #download-desktop.is-open { display: block; margin-top
 .dl-size { font-size: 14px; color: var(--app-text-soft); }
 .dl-file .btn { margin-top: 10px; }
 .help { margin-top: 18px; padding: 18px 20px; border-radius: 12px; background: var(--app-bg); border: 1px solid var(--app-border); }
+.help-os { display: none; margin: 0 0 8px; font: 600 16px var(--sans); }
 .help-title { font: 600 13px var(--mono); text-transform: uppercase; letter-spacing: .12em; margin: 0 0 6px; }
 .help-lead { margin: 0 0 12px; font-size: 16px; }
 .help-cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }

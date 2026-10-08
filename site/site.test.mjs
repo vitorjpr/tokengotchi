@@ -77,6 +77,10 @@ test('architecture signals prefer client hints over a Mac UA that still says Int
     renderer: 'Intel Iris OpenGL Engine',
   }), 'x64');
   assert.equal(archFromSignals({ userAgent: 'Macintosh; Intel Mac OS X 10_15_7' }), null);
+  assert.equal(archFromSignals({
+    userAgent: 'Macintosh; Intel Mac OS X 10_15_7',
+    renderer: 'Apple GPU',
+  }), null);
 });
 
 test('download selection stays compatible with empty arrays and https-only arch files', () => {
@@ -293,8 +297,13 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   assert.doesNotMatch(pt, /tokengotchi_\*\.deb/);
   assert.doesNotMatch(en, /<version>|&lt;version&gt;|\\u003cversion/);
   assert.doesNotMatch(pt, /<version>|&lt;version&gt;|\\u003cversion/);
-  assert.match(en, /101\.6 MB/);
-  assert.match(pt, /101,6 MB/);
+  assert.match(en, /106\.6 MB/);
+  assert.match(pt, /106,6 MB/);
+  assert.match(en, /class="help help-windows" data-help="windows">/);
+  assert.match(en, /class="help help-linux" data-help="linux">/);
+  assert.match(en, /<noscript><style>\.os-tabs\{display:none\}\.help-os\{display:block\}<\/style><\/noscript>/);
+  assert.match(en, /More info/);
+  assert.match(en, /sudo apt install \.\//);
   assert.match(en, /Oct 8, 2026/);
   assert.match(pt, /8 out\. 2026/);
   assert.match(en, /Tokengotchi-0\.5\.2-arm64\.dmg/);
@@ -449,8 +458,9 @@ test('every architecture stays listed, and size and date render only when presen
 
   const tag = manifest.macos[0].url.split('/').at(-2);
   assert.equal(releaseNotesUrl(manifest), `https://github.com/vitorjpr/tokengotchi/releases/tag/${tag}`);
-  assert.equal(formatSize(106564099, 'en'), '101.6 MB');
-  assert.equal(formatSize(106564099, 'pt'), '101,6 MB');
+  assert.equal(formatSize(106564099, 'en'), '106.6 MB');
+  assert.equal(formatSize(106564099, 'pt'), '106,6 MB');
+  assert.equal(formatSize(111547831, 'en'), '111.5 MB');
   assert.equal(formatReleaseDate('2026-10-08', 'en'), 'Oct 8, 2026');
   assert.equal(formatReleaseDate('2026-10-08', 'pt'), '8 out. 2026');
   assert.equal(formatReleaseDate(manifest.released, 'en'), 'Oct 8, 2026');
@@ -498,10 +508,10 @@ test('phones get a computer path and desktops link the detected file', () => {
   assert.equal(mac.kind, 'file');
   assert.equal(mac.href, 'https://example.com/intel.dmg');
   assert.equal(mac.text, 'Download for macOS');
-  assert.equal(mac.sizeText, '106.4 MB');
+  assert.equal(mac.sizeText, '111.5 MB');
   assert.equal(
     heroMetaLine({ detectedOs: 'macos', cpuArch: 'arm64', manifest, ui: copy.en.ui, locale: 'en' }),
-    'Apple Silicon · 101.6 MB · Free, MIT-licensed',
+    'Apple Silicon · 106.6 MB · Free, MIT-licensed',
   );
   const unknown = heroAction({ detectedOs: 'macos', cpuArch: null, manifest, ui: copy.en.ui, locale: 'en' });
   assert.equal(unknown.kind, 'choose');
@@ -514,4 +524,43 @@ test('phones get a computer path and desktops link the detected file', () => {
   const both = downloadView(manifest, 'macos', { detectedOs: 'macos', cpuArch: 'x64', locale: 'en', ui: copy.en.ui });
   assert.deepEqual(both.files.map((file) => file.arch), ['x64', 'arm64']);
   assert.equal(both.files.filter((file) => file.badge).length, 1);
+});
+
+test('Safari on an Intel Mac does not get an Apple Silicon download', async () => {
+  const safari = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15';
+  const arch = archFromSignals({ userAgent: safari, renderer: 'Apple GPU' });
+  assert.equal(arch, null);
+
+  const manifest = JSON.parse(await readFile(new URL('./downloads.json', import.meta.url), 'utf8'));
+  const action = heroAction({
+    detectedOs: 'macos',
+    cpuArch: arch,
+    manifest,
+    ui: copy.en.ui,
+    locale: 'en',
+  });
+  assert.equal(action.kind, 'choose');
+  assert.equal(action.href, '#download');
+  assert.doesNotMatch(action.href, /arm64|\.dmg/);
+  assert.equal(
+    heroMetaLine({ detectedOs: 'macos', cpuArch: arch, manifest, ui: copy.en.ui, locale: 'en' }),
+    'v0.5.2 · Free, MIT-licensed',
+  );
+
+  const view = downloadView(manifest, 'macos', {
+    detectedOs: 'macos',
+    cpuArch: arch,
+    locale: 'en',
+    ui: copy.en.ui,
+  });
+  assert.equal(view.files.length, 2);
+  assert.equal(view.files.filter((file) => file.badge).length, 0);
+  assert.ok(view.files.some((file) => file.name.endsWith('-arm64.dmg')));
+  assert.ok(view.files.some((file) => file.name.endsWith('-x64.dmg')));
+
+  assert.equal(archFromSignals({ userAgent: safari, renderer: 'Apple GPU', architecture: 'arm' }), 'arm64');
+  assert.equal(archFromSignals({ userAgent: safari, renderer: 'Apple GPU', architecture: 'x86' }), 'x64');
+  assert.equal(archFromSignals({ userAgent: safari, renderer: 'ANGLE (Apple, Apple M3 Pro, OpenGL 4.1)' }), 'arm64');
+  assert.equal(archFromSignals({ renderer: 'Apple GPU' }), null);
+  assert.equal(archFromSignals({ userAgent: safari, renderer: 'Intel(R) Iris(TM) Plus Graphics OpenGL Engine' }), 'x64');
 });

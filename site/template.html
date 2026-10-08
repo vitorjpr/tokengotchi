@@ -145,6 +145,7 @@
         <p class="mobile-url"><code id="mobile-url">tokengotchi.app/{{locale}}/</code></p>
       </div>
       <button type="button" class="phone-summary" id="phone-files-toggle" aria-controls="download-desktop" aria-expanded="false">{{otherFiles}}</button>
+      <noscript><style>.os-tabs{display:none}.help-os{display:block}</style></noscript>
       <div id="download-desktop">
           <div class="os-tabs" role="tablist" aria-label="{{osLabel}}">
             <button type="button" class="os-tab" role="tab" id="tab-macos" data-os="macos" aria-selected="true" aria-controls="os-panel">macOS</button>
@@ -154,6 +155,7 @@
           <div class="os-panel" role="tabpanel" id="os-panel" aria-labelledby="tab-macos">
             <div id="dl-files">{{fileCardsHtml}}</div>
             <div class="help help-macos" data-help="macos">
+              <p class="help-os">macOS</p>
               <h3 class="help-title">{{firstOpen}}</h3>
               <p class="help-lead">{{macLead}}</p>
               <div class="help-cols">
@@ -161,12 +163,14 @@
                 <div class="help-col"><p class="help-sub">{{macSonTitle}}</p><p>{{macSon}}</p></div>
               </div>
             </div>
-            <div class="help help-windows" data-help="windows" hidden>
+            <div class="help help-windows" data-help="windows">
+              <p class="help-os">Windows</p>
               <h3 class="help-title">{{firstOpen}}</h3>
               <p class="help-lead">{{winLead}}</p>
               <div class="help-cols"><div class="help-col"><p class="help-sub">{{winWarnTitle}}</p><p>{{winWarn}}</p></div></div>
             </div>
-            <div class="help help-linux" data-help="linux" hidden>
+            <div class="help help-linux" data-help="linux">
+              <p class="help-os">Linux</p>
               <h3 class="help-title">{{installTitle}}</h3>
               <p class="help-lead" id="apt-lead">{{linuxChipLead}}</p>
               <div class="apt" id="apt-rows">{{aptHtml}}</div>

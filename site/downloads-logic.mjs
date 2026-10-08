@@ -153,10 +153,10 @@ const MONTHS = {
   pt: ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'],
 };
 
-/** `101.6 MB` / `101,6 MB`, or null when `bytes` is missing. MiB, matching the release listing. */
+/** `106.6 MB` / `106,6 MB`, or null when `bytes` is missing. Decimal MB (bytes / 1e6), as GitHub and macOS show sizes. */
 export function formatSize(bytes, locale = 'en') {
   if (!Number.isInteger(bytes) || bytes <= 0) return null;
-  const text = (bytes / 1048576).toFixed(1);
+  const text = (bytes / 1e6).toFixed(1);
   const number = locale === 'pt' ? text.replace('.', ',') : text;
   return `${number} MB`;
 }
@@ -403,14 +403,18 @@ export function linuxDetail(ui, entries) {
   return ui?.detail?.linux || '';
 }
 
-/** Client hints win, then the UA, then a GPU renderer string for Macs that still say Intel. */
+/**
+ * Client hints, then the UA, then an explicit Apple M-series renderer.
+ * Returns null when the arch is unknown. Safari reports the renderer as
+ * "Apple GPU" on every Mac, Intel included, so that string is not a signal.
+ */
 export function archFromSignals({ userAgent = '', architecture = '', renderer = '' } = {}) {
   const hinted = String(architecture || '').toLowerCase();
   if (hinted.includes('arm')) return 'arm64';
   if (hinted === 'x86' || hinted === 'x64' || hinted.includes('x86')) return 'x64';
   if (/aarch64|arm64|armv8/i.test(userAgent)) return 'arm64';
   if (/\b(x86_64|win64|amd64|x64)\b/i.test(userAgent)) return 'x64';
-  if (/Apple\s*M\d/i.test(renderer) || (/Apple GPU/i.test(renderer) && !/Intel/i.test(renderer))) return 'arm64';
+  if (/Apple\s*M\d/i.test(renderer)) return 'arm64';
   if (/Intel|AMD|Radeon|NVIDIA|GeForce/i.test(renderer)) return 'x64';
   return null;
 }

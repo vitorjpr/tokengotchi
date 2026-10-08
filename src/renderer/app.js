@@ -30,6 +30,11 @@ const MOOD_COLOR = {
 };
 
 function formatTokens(n) {
+  // Infinity/NaN viravam "Infinitybi"/"NaN"; melhor um traço neutro.
+  if (!Number.isFinite(n)) return '—';
+  // As metas dos últimos níveis passam de 1 bilhão; sem este degrau a
+  // linha do próximo nível mostrava "2624.0M".
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}bi`;
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(Math.round(n));
@@ -49,12 +54,21 @@ function render() {
   el('gen').textContent = `·${state.generation}`;
   el('moodLabel').textContent = state.dead ? 'morreu de fome' : state.mood;
   el('stageLabel').textContent = state.stageLabel || state.stage;
-  el('levelLabel').textContent = `Nível ${state.level || 1} / ${state.totalLevels || 19}`;
+  // Na tela só "x / 19", para sobrar espaço ao nome da fase. O leitor de
+  // tela ouve a frase inteira pelo span invisível (o "x / 19" é aria-hidden).
+  const level = state.level || 1;
+  const totalLevels = state.totalLevels || 19;
+  el('levelValue').textContent = `${level} / ${totalLevels}`;
+  el('levelText').textContent = `nível ${level} de ${totalLevels}`;
   el('phaseLabel').textContent = state.stagePhase || 'Primeiros passos';
   el('evolutionProgress').value = state.stageProgress || 0;
-  el('nextLevel').textContent = state.nextStageLabel
-    ? `Próximo: ${state.nextStageLabel} · faltam ${formatTokens(state.caloriesToNext)} cal`
-    : 'Evolução completa';
+  // Só o nome do próximo estágio (o que vem antes do " · "), sem a descrição
+  // da fase, e o custo num span à parte que nunca é cortado.
+  const nextStage = state.nextStageLabel ? state.nextStageLabel.split(' · ')[0] : '';
+  el('nextName').textContent = nextStage ? `próximo: ${nextStage}` : 'evolução completa';
+  el('nextCost').textContent = nextStage
+    ? `faltam ${formatTokens(state.caloriesToNext)} cal`
+    : '';
   el('dot').style.background = MOOD_COLOR[state.mood] || '#c49a78';
 
   el('satietyValue').textContent = `${state.satiety}%`;

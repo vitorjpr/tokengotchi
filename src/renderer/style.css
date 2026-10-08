@@ -20,6 +20,28 @@
   padding: 0;
 }
 
+/*
+ * O atributo hidden é só um display:none da folha do navegador, e qualquer
+ * display do autor ganha dele. Sem isto, a faixa .update (display:flex)
+ * aparecia vazia — "Versão — disponível" — mesmo sem versão nova.
+ */
+[hidden] {
+  display: none !important;
+}
+
+/* Texto só para leitor de tela. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 html,
 body {
   height: 100%;
@@ -213,9 +235,13 @@ a[href] {
   transform: translateY(0);
 }
 
+/*
+ * O painel de leitura nunca encolhe nem rola: quem cede espaço é a tela do
+ * bichinho (.screen, flex: 1). Assim a faixa de atualização ou o botão de
+ * chocar entram sem criar barra de rolagem numa janela de tamanho fixo.
+ */
 .readout {
-  min-height: 0;
-  overflow-y: auto;
+  flex: none;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -326,7 +352,7 @@ a[href] {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 0; /* o gap de 8px do .readout já separa */
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -367,7 +393,100 @@ a[href] {
   outline-offset: 2px;
 }
 
-.evolution { font-size: 10px; line-height: 1.4; color: var(--text-soft); }
-#phaseLabel { color: var(--text); font-size: 12px; }
-#nextLevel { min-height: 28px; overflow-wrap: anywhere; }
-#evolutionProgress { display: block; width: 100%; height: 6px; margin: 4px 0; accent-color: var(--primary); }
+/*
+ * Evolução em 19 níveis, no mesmo idioma visual dos medidores: cabeçalho
+ * mono em caixa alta (fase à esquerda, nível à direita), uma barra igual às
+ * de saciedade e saúde e uma única linha com o próximo nível.
+ */
+.evolution {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 6px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--text-soft);
+}
+
+#phaseLabel,
+#levelLabel {
+  grid-row: 1;
+  align-self: start;
+  margin-bottom: 3px;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+/* Só a fase pode ser longa. Em vez de cortar, ela quebra em no máximo duas
+   linhas (o painel tem folga para isso mesmo no pior caso, morto +
+   atualização); só além disso entram as reticências. */
+#phaseLabel {
+  grid-column: 1;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  /* O overflow cortaria o acento das maiúsculas (o Ó de GRIMÓRIO); o padding
+     dá espaço a ele e a margem negativa mantém o alinhamento com o nível. */
+  padding-top: 2px;
+  margin-top: -2px;
+}
+
+#levelLabel {
+  grid-column: 2;
+  white-space: nowrap;
+}
+
+#evolutionProgress {
+  grid-column: 1 / -1;
+  display: block;
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+#evolutionProgress::-webkit-progress-bar {
+  background: var(--bg);
+  border-radius: 999px;
+}
+
+#evolutionProgress::-webkit-progress-value {
+  background: var(--secondary);
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+/* Nome do próximo nível à esquerda (cortado com reticências se faltar
+   espaço) e o custo à direita, que nunca some. */
+#nextLevel {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 3px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+#nextName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#nextCost {
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #evolutionProgress::-webkit-progress-value {
+    transition: none;
+  }
+}

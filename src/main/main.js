@@ -130,11 +130,18 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Janela de tamanho fixo: zoom de página empurra a faixa de atualização
+      // para fora da tela. 1 = 100%.
+      zoomFactor: 1
     }
   });
 
+  lockWindowZoom(win);
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  // CSP fica na meta do renderer. loadFile usa file://, e o Electron não
+  // aplica Content-Security-Policy via webRequest.onHeadersReceived nesse
+  // protocolo — um cabeçalho de sessão não cobriria esta janela.
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   win.once('ready-to-show', () => win.show());
   win.on('closed', () => {
@@ -187,9 +194,90 @@ function trayIcon() {
 }
 
 function formatTokens(n) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  // Mesma escala da janela (k / M / bi). O limiar fica em 999.95 da unidade
+  // de baixo: toFixed(1) arredonda isso para 1000.0 e a bandeja mostraria
+  // "1000.0M" em vez de "1.0bi".
+  if (!Number.isFinite(n)) return '—';
+  if (n >= 999_950_000) return `${(n / 1_000_000_000).toFixed(1)}bi`;
+  if (n >= 999_950) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 999.5) return `${(n / 1_000).toFixed(1)}k`;
   return String(Math.round(n));
+}
+
+/**
+ * Atalho de zoom da página: Cmd/Ctrl combinado com +, =, -, _ ou 0
+ * (incluindo o teclado numérico). Não cobre a roda — isso chega por
+ * `zoom-changed`.
+ */
+function isZoomShortcut(input) {
+  if (!input || (input.type !== 'keyDown' && input.type !== 'keyUp')) return false;
+  if (!input.control && !input.meta) return false;
+  const code = input.code;
+  const key = input.key;
+  return (
+    code === 'Equal' ||
+    code === 'Minus' ||
+    code === 'Digit0' ||
+    code === 'NumpadAdd' ||
+    code === 'NumpadSubtract' ||
+    code === 'Numpad0' ||
+    key === '=' ||
+    key === '+' ||
+    key === '-' ||
+    key === '_' ||
+    key === '0'
+  );
+}
+
+/**
+ * Trava o zoom da página em 100%. A janela não cresce com o conteúdo, então
+ * Cmd/Ctrl+= empurra a faixa de atualização para fora da área visível.
+ * Pinch nasce desligado no Electron; o intervalo em 1 impede que um gesto
+ * de trackpad escale a janela se o zoom visual for religado.
+ */
+function lockWindowZoom(target) {
+  const contents = target.webContents;
+  const resetZoom = () => {
+    if (contents.isDestroyed()) return;
+    if (contents.getZoomFactor() !== 1) contents.setZoomFactor(1);
+  };
+
+  contents.setZoomFactor(1);
+  contents.setVisualZoomLevelLimits(1, 1).catch((err) => {
+    console.error('[tokengotchi] não consegui travar o zoom visual:', err.message);
+  });
+  contents.on('before-input-event', (event, input) => {
+    if (isZoomShortcut(input)) event.preventDefault();
+  });
+  // Cmd/Ctrl + roda não passa pelo menu; o Chromium pede o zoom direto.
+  contents.on('zoom-changed', () => resetZoom());
+  contents.on('did-finish-load', () => resetZoom());
+}
+
+/**
+ * O menu padrão do Electron inclui os papéis zoomIn, zoomOut e resetZoom
+ * (Cmd/Ctrl + =, -, 0). Sem eles, o atalho e o clique no menu deixam de
+ * mudar o zoom da página. O menu Editar fica: no macOS, cortar, copiar e
+ * colar no campo de nome dependem dele.
+ */
+function installApplicationMenu() {
+  const template = [
+    ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
+    { role: 'fileMenu' },
+    { role: 'editMenu' },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    { role: 'windowMenu' }
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 function sourceMenuItems() {
@@ -484,6 +572,7 @@ app.whenReady().then(() => {
   pet = loaded.pet;
   const firstRun = loaded.isNew && Object.keys(cursors).length === 0;
 
+  installApplicationMenu();
   createWindow();
   tray = new Tray(trayIcon());
   tray.setContextMenu(buildTrayMenu());

@@ -458,7 +458,8 @@ a[href] {
 }
 
 #evolutionProgress::-webkit-progress-value {
-  background: var(--secondary);
+  /* Fill da evolução: --text-soft (UX, ~5.16:1 sobre --bg). Trocar só este token. */
+  background: var(--text-soft);
   border-radius: 999px;
   transition: width 0.5s ease;
 }

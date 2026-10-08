@@ -514,6 +514,110 @@ assert.ok(
   'o app não repassa o rootAllowlist do JSON como opção que alargaria a política'
 );
 
+// --- zoom, CSP e contraste da evolução (follow-up de auditoria) ---
+assert.ok(mainJs.includes('zoomFactor: 1'), 'webPreferences precisa travar o zoom em 100%');
+assert.ok(
+  mainJs.includes('setVisualZoomLevelLimits(1, 1)'),
+  'o pinch precisa ficar limitado a 100%'
+);
+assert.ok(mainJs.includes('before-input-event'), 'o atalho Cmd/Ctrl+= precisa ser engolido');
+assert.ok(
+  !/role:\s*['"]zoomIn['"]|role:\s*['"]zoomOut['"]|role:\s*['"]resetZoom['"]/.test(mainJs),
+  'o menu da aplicação não pode trazer os papéis de zoom da página'
+);
+
+const cspTag = rendererHtml.match(
+  /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"/
+);
+assert.ok(cspTag, 'o renderer precisa de uma meta Content-Security-Policy');
+assert.match(cspTag[1], /default-src 'self'/);
+assert.match(cspTag[1], /script-src 'self'/);
+assert.match(cspTag[1], /style-src 'self'/);
+assert.doesNotMatch(
+  cspTag[1],
+  /unsafe-inline|unsafe-eval/,
+  'a CSP do bichinho não precisa de unsafe-inline nem unsafe-eval'
+);
+assert.ok(
+  !/\.onHeadersReceived\s*\(/.test(mainJs),
+  'cabeçalho de sessão não cobre o file:// do loadFile; a CSP fica na meta'
+);
+
+const evolutionFill = rendererCss.match(
+  /#evolutionProgress::-webkit-progress-value\s*\{([^}]*)\}/
+);
+assert.ok(evolutionFill, 'falta o preenchimento da barra de evolução');
+assert.match(evolutionFill[1], /background:\s*var\(--text-soft\)/);
+assert.doesNotMatch(evolutionFill[1], /#[0-9a-fA-F]{3,8}/, 'o fill não pode ser um hex solto');
+assert.match(evolutionFill[1], /transition:\s*width 0\.5s ease/);
+assert.match(
+  rendererCss,
+  /#evolutionProgress\s*\{[^}]*height:\s*6px;[^}]*border:\s*1px solid var\(--border\);[^}]*background:\s*var\(--bg\)/
+);
+assert.match(rendererCss, /\.fill-satiety\s*\{[^}]*background:\s*var\(--primary\)/);
+assert.match(rendererCss, /\.fill-health\s*\{[^}]*background:\s*var\(--success\)/);
+
+function extractFunction(source, name) {
+  const start = source.indexOf(`function ${name}(`);
+  assert.notStrictEqual(start, -1, `não achei function ${name}`);
+  let depth = 0;
+  for (let i = source.indexOf('{', start); i < source.length; i += 1) {
+    if (source[i] === '{') depth += 1;
+    else if (source[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return new Function(`return (${source.slice(start, i + 1)})`)();
+    }
+  }
+  throw new Error(`function ${name} não fecha`);
+}
+
+const formatInWindow = extractFunction(rendererJs, 'formatTokens');
+const formatInTray = extractFunction(mainJs, 'formatTokens');
+const formatCases = [
+  [0, '0'],
+  [999, '999'],
+  [999.49, '999'],
+  [999.5, '1.0k'],
+  [999_949, '999.9k'],
+  [999_950, '1.0M'],
+  [1_500_000, '1.5M'],
+  [999_949_999, '999.9M'],
+  [999_950_000, '1.0bi'],
+  [2_624_000_000, '2.6bi'],
+  [Number.POSITIVE_INFINITY, '—']
+];
+for (const [value, expected] of formatCases) {
+  assert.strictEqual(formatInWindow(value), expected, `janela formata ${value} como ${expected}`);
+  assert.strictEqual(formatInTray(value), expected, `bandeja formata ${value} como ${expected}`);
+}
+
+const isZoomShortcut = extractFunction(mainJs, 'isZoomShortcut');
+assert.strictEqual(
+  isZoomShortcut({ type: 'keyDown', meta: true, code: 'Equal', key: '=' }),
+  true,
+  'Cmd+= é zoom'
+);
+assert.strictEqual(
+  isZoomShortcut({ type: 'keyDown', control: true, code: 'Minus', key: '-' }),
+  true,
+  'Ctrl+- é zoom'
+);
+assert.strictEqual(
+  isZoomShortcut({ type: 'keyDown', control: true, code: 'Digit0', key: '0' }),
+  true,
+  'Ctrl+0 é zoom'
+);
+assert.strictEqual(
+  isZoomShortcut({ type: 'keyDown', meta: true, code: 'KeyC', key: 'c' }),
+  false,
+  'Cmd+C continua sendo copiar'
+);
+assert.strictEqual(
+  isZoomShortcut({ type: 'keyDown', code: 'Equal', key: '=' }),
+  false,
+  'sem modificador, = não é zoom'
+);
+
 // --- regras do bichinho ---
 const now = Date.now();
 let pet = petLib.freshPet(now);
@@ -798,6 +902,21 @@ assert.strictEqual(
 );
 
 fs.rmSync(tmp, { recursive: true, force: true });
+
+// Fuses de injeção no binário empacotado. Este teste não sobe o Electron:
+// só trava a configuração que o electron-builder grava no binário.
+const packaged = require('../package.json');
+assert.deepStrictEqual(
+  packaged.build && packaged.build.electronFuses,
+  {
+    runAsNode: false,
+    enableNodeOptionsEnvironmentVariable: false,
+    enableNodeCliInspectArguments: false,
+    enableEmbeddedAsarIntegrityValidation: true,
+    onlyLoadAppFromAsar: true
+  },
+  'electronFuses fecha RunAsNode, NODE_OPTIONS, inspect e carga fora do app.asar'
+);
 
 // --- segredo do ingest ---
 // O arquivo versionado não pode nascer com uma senha compartilhada.

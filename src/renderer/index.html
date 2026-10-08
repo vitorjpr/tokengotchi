@@ -2,6 +2,16 @@
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
+    <!--
+      CSP do bichinho. A janela abre por loadFile (file://); o Electron não
+      entrega cabeçalho de CSP nesse protocolo, então a política mora aqui.
+      Só arquivos locais do renderer. Sem 'unsafe-inline': não há script nem
+      style inline — o JS pinta as barras pelo CSSOM, que a CSP não bloqueia.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
     <title>Tokengotchi</title>
     <link rel="stylesheet" href="style.css" />
   </head>

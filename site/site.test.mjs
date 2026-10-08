@@ -241,6 +241,8 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
     assert.match(html, /src="\/assets\/estagio-adulto\.png"/);
     assert.match(html, /src="\/assets\/humor-feliz\.png"/);
     assert.equal((html.match(/aria-current="page"/g) || []).length, 1);
+    assert.match(html, /aria-label="EN, English"/);
+    assert.match(html, /aria-label="PT, Português"/);
   }
   assert.match(en, /Your tokens\./);
   assert.match(pt, /Seus tokens\./);

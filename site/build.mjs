@@ -1,22 +1,31 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { copy } from './copy.mjs';
-import { checksumUrl, selectDownloads, validateManifest } from './downloads-logic.mjs';
+import { aptInstallPlans, checksumUrl, downloadView, selectDownloads, validateManifest } from './downloads-logic.mjs';
 
 const root = new URL('./', import.meta.url);
 const output = new URL('./dist/', root);
 const RAW = new Set([
   'heroTitleHtml',
-  'tokenNoteHtml',
-  'toolsKickerHtml',
-  'howTitleHtml',
+  'wittyHtml',
+  'trustHtml',
+  'livesTitleHtml',
+  'feedTitleHtml',
+  'feed2BodyHtml',
+  'feedNoteHtml',
   'evoTitleHtml',
-  'evoIntroHtml',
-  'privacyBodyHtml',
+  'privReadsBodyHtml',
   'dlTitleHtml',
+  'macSeq1',
+  'macSeq2',
+  'macSeq3',
+  'macSon',
+  'winLead',
+  'winWarn',
   'noscriptHtml',
-  'downloadHtml',
-  'checksumHtml',
+  'fileCardsHtml',
+  'aptHtml',
+  'metaHtml',
   'uiJson',
   'enCurrent',
   'ptCurrent',
@@ -54,13 +63,56 @@ export function renderChecksum(locale, manifest) {
   return `${link}<p class="checksum-note">${escapeHtml(checksumNote)}</p>`;
 }
 
+export function renderFileCardsHtml(locale, manifest, os = 'macos') {
+  const page = copy[locale];
+  const view = downloadView(manifest, os, { locale, ui: page.ui });
+  if (!view.files.length) {
+    const message = page.ui.comingSoon.replaceAll('{os}', page.ui.os[os] || os);
+    return `<p class="availability">${escapeHtml(message)}</p>`;
+  }
+  const cards = view.files.map((file) => {
+    const badge = file.badge ? `<span class="dl-badge">${escapeHtml(page.ui.detected)}</span>` : '';
+    const name = file.name ? `<code class="dl-name">${escapeHtml(file.name)}</code>` : '';
+    const size = file.sizeText ? `<span class="dl-size">${escapeHtml(file.sizeText)}</span>` : '';
+    const kind = file.recommended ? 'btn-primary' : 'btn-secondary';
+    const rec = file.recommended ? ' is-rec' : '';
+    return `<div class="dl-file${rec}"><div class="dl-file-head"><span class="dl-arch">${escapeHtml(file.archLabel)}</span>${badge}</div>${name}${size}<a class="btn ${kind}" href="${escapeHtml(file.url)}" aria-label="${escapeHtml(file.ariaLabel)}">${escapeHtml(file.buttonText)}</a></div>`;
+  }).join('');
+  return `<div class="dl-files">${cards}</div>`;
+}
+
+export function renderAptHtml(locale, entries) {
+  const page = copy[locale];
+  return aptInstallPlans(entries).map((plan) => {
+    const arch = page.ui.arch?.linux?.[plan.arch] || plan.arch;
+    const label = `${page.linuxCopy}: ${plan.command}`;
+    return `<div class="apt-row"><span class="apt-arch">${escapeHtml(arch)}</span><code>${escapeHtml(plan.command)}</code><button type="button" class="apt-copy" aria-label="${escapeHtml(label)}">${escapeHtml(page.linuxCopy)}</button></div>`;
+  }).join('');
+}
+
+export function renderMetaHtml(locale, manifest) {
+  const page = copy[locale].ui;
+  const view = downloadView(manifest, 'macos', { locale, ui: page });
+  const bits = [];
+  if (view.tag) bits.push(`<span><span class="k">${escapeHtml(page.version)}</span> ${escapeHtml(view.tag)}</span>`);
+  if (view.released) bits.push(`<span><span class="k">${escapeHtml(page.released)}</span> ${escapeHtml(view.released)}</span>`);
+  if (view.notesUrl) {
+    bits.push(`<a href="${escapeHtml(view.notesUrl)}">${escapeHtml(page.notes)} <span aria-hidden="true">↗</span></a>`);
+  }
+  if (view.sumsUrl) {
+    bits.push(`<a href="${escapeHtml(view.sumsUrl)}">${escapeHtml(page.checksum)} <span aria-hidden="true">↗</span></a>`);
+  }
+  const note = page.checksumNote ? `<p class="checksum-note">${escapeHtml(page.checksumNote)}</p>` : '';
+  return `<p class="dl-meta-row">${bits.join('')}</p>${note}`;
+}
+
 export function renderNoscript(locale, manifest) {
   const page = copy[locale];
   const items = [];
   for (const os of ['macos', 'windows', 'linux']) {
     for (const entry of selectDownloads(manifest?.[os], null)) {
       const label = page.ui.download.replaceAll('{label}', entry.label);
-      items.push(`<li><a class="button" href="${escapeHtml(entry.url)}">${escapeHtml(label)}</a></li>`);
+      items.push(`<li><a class="btn btn-secondary" href="${escapeHtml(entry.url)}">${escapeHtml(label)}</a></li>`);
     }
   }
   if (!items.length) return `<p>${escapeHtml(page.noscriptSoon)}</p>`;
@@ -84,12 +136,12 @@ function rootPage() {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#10120f">
+  <meta name="theme-color" content="#171310">
   <title>Tokengotchi</title>
   <link rel="icon" type="image/png" href="/assets/estagio-broto.png">
   <style>
-    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#10120f;color:#f1f3e9;font:16px/1.5 "DM Sans",sans-serif}
-    a{color:#c4f76b}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#171310;color:#faf4ee;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+    a{color:#faf4ee}
     p{display:flex;gap:18px}
   </style>
   <script>
@@ -124,11 +176,11 @@ export async function build() {
   for (const locale of ['en', 'pt']) {
     const html = renderLocale(template, locale, {
       year,
-      uiHeroCta: copy[locale].ui.heroCta,
       uiJson: JSON.stringify(copy[locale].ui).replaceAll('<', '\\u003c'),
       noscriptHtml: renderNoscript(locale, manifest),
-      downloadHtml: renderDownloadResult(locale, manifest),
-      checksumHtml: renderChecksum(locale, manifest),
+      fileCardsHtml: renderFileCardsHtml(locale, manifest, 'macos'),
+      aptHtml: renderAptHtml(locale, manifest.linux),
+      metaHtml: renderMetaHtml(locale, manifest),
       enCurrent: locale === 'en' ? ' aria-current="page"' : '',
       ptCurrent: locale === 'pt' ? ' aria-current="page"' : '',
     });

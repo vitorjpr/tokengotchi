@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10120f">
+  <meta name="theme-color" content="#171310">
   <meta name="description" content="{{description}}">
   <link rel="canonical" href="https://tokengotchi.app/{{locale}}/">
   <link rel="alternate" hreflang="en" href="https://tokengotchi.app/en/">
@@ -14,95 +14,177 @@
   <meta property="og:title" content="{{title}}">
   <meta property="og:description" content="{{description}}">
   <meta property="og:url" content="https://tokengotchi.app/{{locale}}/">
-  <meta property="og:image" content="https://tokengotchi.app/assets/estagio-dragao-ancestral.png">
+  <meta property="og:image" content="https://tokengotchi.app/assets/og.png">
   <meta property="og:image:alt" content="{{ogImageAlt}}">
   <meta property="og:locale" content="{{ogLocale}}">
   <meta property="og:locale:alternate" content="{{ogLocaleAlt}}">
   <link rel="icon" type="image/png" href="/assets/estagio-broto.png">
+  <link rel="preload" href="/assets/PixelifySans-subset.woff2" as="font" type="font/woff2" crossorigin>
   <title>{{title}}</title>
   <link rel="stylesheet" href="/styles.css">
+  <!-- Mirrors detectDesktopOs in downloads-logic.mjs so phones never paint a .dmg button. -->
+  <script>
+    (function () {
+      var ua = navigator.userAgent || '';
+      var platform = navigator.platform || '';
+      var touch = navigator.maxTouchPoints || 0;
+      var mobile = /Android|iPhone|iPad|iPod/i.test(ua) || (platform === 'MacIntel' && touch > 1);
+      var os = null;
+      if (!mobile) {
+        if (/Mac/i.test(ua)) os = 'macos';
+        else if (/Windows/i.test(ua)) os = 'windows';
+        else if (/Linux/i.test(ua)) os = 'linux';
+      }
+      document.documentElement.dataset.device = os ? 'desktop' : 'phone';
+    })();
+  </script>
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <a class="skip" href="#main">{{skip}}</a>
-  <header class="navigation wrap">
-    <a class="brand" href="/{{locale}}/" aria-label="{{brandHome}}"><img src="/assets/estagio-broto.png" width="40" height="40" alt="">tokengotchi</a>
-    <div class="nav-tools">
-      <nav aria-label="{{navLabel}}">
-        <a href="#how-it-works">{{navHow}}</a>
-        <a href="#evolution">{{navEvolution}}</a>
-        <a class="nav-download" href="#download">{{navDownload}} <span aria-hidden="true">↗</span></a>
-      </nav>
-      <nav class="lang-switch" aria-label="{{langLabel}}">
-        <a href="/en/" hreflang="en" lang="en" data-switch="en" aria-label="{{langEn}}"{{enCurrent}}>EN</a>
-        <a href="/pt/" hreflang="pt" lang="pt" data-switch="pt" aria-label="{{langPt}}"{{ptCurrent}}>PT</a>
-      </nav>
-    </div>
+  <header class="nav wrap">
+    <a class="brand" href="/{{locale}}/" aria-label="{{brandHome}}"><img class="px" src="/assets/estagio-broto.png" width="32" height="32" alt="">tokengotchi</a>
+    <nav class="nav-links" aria-label="{{navLabel}}">
+      <a href="#how">{{navHow}}</a>
+      <a href="#evolution">{{navEvolution}}</a>
+      <a href="#download">{{navDownload}}</a>
+      <a class="gh" href="https://github.com/vitorjpr/tokengotchi">{{navGitHub}}</a>
+    </nav>
+    <nav class="lang" aria-label="{{langLabel}}">
+      <a href="/en/" hreflang="en" lang="en" data-switch="en" aria-label="{{langEn}}"{{enCurrent}}>EN</a>
+      <a href="/pt/" hreflang="pt" lang="pt" data-switch="pt" aria-label="{{langPt}}"{{ptCurrent}}>PT</a>
+    </nav>
   </header>
   <main id="main">
     <section class="hero wrap">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> {{eyebrow}}</p>
+        <p class="label eyebrow">{{eyebrow}}</p>
         <h1>{{heroTitleHtml}}</h1>
-        <p class="intro">{{intro}}</p>
-        <a class="button" href="#download"><span id="hero-download">{{uiHeroCta}}</span><span aria-hidden="true">↓</span></a>
-        <p class="micro">{{micro}}</p>
-      </div>
-      <div class="desktop" role="img" aria-label="{{desktopLabel}}">
-        <div class="desktop-bar"><span>{{desktopBar}}</span><span aria-hidden="true">◒</span></div>
-        <div class="code-window"><div class="window-bar"><span class="window-dots" aria-hidden="true">● ● ●</span><span>{{codeFile}}</span></div><div class="code-body"><p><span class="code-muted">01</span> <span class="code-purple">const</span> {{codeVar}} = {</p><p><span class="code-muted">02</span> &nbsp; {{codeKeyIdeas}}: <span class="code-lime">"{{codeIdeas}}"</span>,</p><p><span class="code-muted">03</span> &nbsp; {{codeKeyCoffee}}: <span class="code-orange">true</span>,</p><p><span class="code-muted">04</span> &nbsp; {{codeKeyCompany}}: <span class="code-lime">"tokengotchi"</span></p><p><span class="code-muted">05</span> };</p><p class="terminal-line">❯ {{terminal}}<span class="cursor" aria-hidden="true">_</span></p></div></div>
-        <div class="pet-window"><div class="pet-title"><span><span class="status-dot" aria-hidden="true"></span> {{petName}}</span><span aria-hidden="true">− ×</span></div><div class="pet-content"><span class="pet-level">{{petLevel}}</span><img class="hero-pet" src="/assets/estagio-adulto.png" alt="" width="190" height="190"><div class="pet-mood">{{petMood}}</div><div class="meter" aria-hidden="true"><span></span></div><div class="pet-meta"><span>{{petNext}}</span><span>72%</span></div></div></div>
-        <div class="token-note"><span aria-hidden="true">✦</span> {{tokenNoteHtml}}</div>
-        <span class="desktop-caption">{{caption}}</span>
-      </div>
-    </section>
-    <section class="tools wrap" aria-label="{{toolsLabel}}"><span>{{toolsKickerHtml}}</span><div>Claude Code</div><div>Codex CLI</div><div>Grok CLI</div><div>Cursor</div></section>
-    <section id="how-it-works" class="how wrap section">
-      <div class="section-heading"><p class="eyebrow">{{howEyebrow}}</p><h2>{{howTitleHtml}}</h2></div>
-      <div class="features">
-        <article><span class="number">[ 01 ]</span><h3>{{how1Title}}</h3><p>{{how1Body}}</p></article>
-        <article><span class="number">[ 02 ]</span><h3>{{how2Title}}</h3><p>{{how2Body}}</p></article>
-        <article><span class="number">[ 03 ]</span><h3>{{how3Title}}</h3><p>{{how3Body}}</p></article>
-      </div>
-    </section>
-    <section id="evolution" class="evolution section">
-      <div class="wrap">
-        <div class="evolution-heading"><div><p class="eyebrow">{{evoEyebrow}}</p><h2>{{evoTitleHtml}}</h2></div><p>{{evoIntroHtml}}</p></div>
-        <div class="evolution-track">
-          <figure><img src="/assets/estagio-ovo.png" alt="{{altEgg}}" width="130" height="130" loading="lazy"><figcaption><span>01</span> {{nameEgg}}</figcaption></figure>
-          <figure><img src="/assets/estagio-broto.png" alt="{{altSprout}}" width="130" height="130" loading="lazy"><figcaption><span>02</span> {{nameSprout}}</figcaption></figure>
-          <figure><img src="/assets/estagio-guerreiro.png" alt="{{altWarrior}}" width="130" height="130" loading="lazy"><figcaption><span>06</span> {{nameWarrior}}</figcaption></figure>
-          <figure><img src="/assets/estagio-mago.png" alt="{{altMage}}" width="130" height="130" loading="lazy"><figcaption><span>12</span> {{nameMage}}</figcaption></figure>
-          <figure class="final-form"><img src="/assets/estagio-dragao-ancestral.png" alt="{{altDragon}}" width="130" height="130" loading="lazy"><figcaption><span>19</span> {{nameDragon}}</figcaption></figure>
+        <p class="sub">{{heroSub}}</p>
+        <p class="tools"><span class="label">{{feedsOn}}</span> <span class="tool">Claude Code</span><span class="tool">Codex CLI</span><span class="tool">Grok CLI</span><span class="tool">Cursor</span></p>
+        <div class="ctas">
+          <a class="btn btn-primary btn-xl" id="hero-cta" href="#download"><span class="when-desktop" id="hero-download">{{heroCta}}</span><span class="when-phone">{{ctaMobile}}</span><span class="cta-arrow when-desktop" aria-hidden="true">↓</span></a>
+          <a class="btn btn-ghost btn-xl" href="https://github.com/vitorjpr/tokengotchi"><svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.67.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.83-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0Z"/></svg><span>{{ctaGh}}</span></a>
         </div>
-        <p class="evolution-footnote">{{evoFoot}}</p>
+        <p class="cta-meta when-desktop"><span id="hero-meta">{{freeLine}}</span> · <a href="#download">{{otherFiles}}</a></p>
+      </div>
+      <div class="hero-visual">
+        <div class="pet-card">
+          <div class="screen hero-screen"><img src="/assets/estagio-adulto.png" width="256" height="256" alt="{{heroAlt}}" class="bob"></div>
+          <div class="pet-card-row">
+            <figure class="mini-mood"><div class="screen"><img src="/assets/humor-comendo.png" width="48" height="48" alt=""></div><figcaption>{{moodEating}}</figcaption></figure>
+            <figure class="mini-mood"><div class="screen"><img src="/assets/humor-dormindo.png" width="48" height="48" alt=""></div><figcaption>{{moodSleeping}}</figcaption></figure>
+            <figure class="mini-mood"><div class="screen"><img src="/assets/humor-com-fome.png" width="48" height="48" alt=""></div><figcaption>{{moodHungry}}</figcaption></figure>
+          </div>
+        </div>
+        <p class="witty">{{wittyHtml}}</p>
+      </div>
+      <p class="trust"><span class="trust-icon" aria-hidden="true">⌂</span><span>{{trustHtml}}</span></p>
+    </section>
+
+    <section class="lives wrap" aria-labelledby="lives-h">
+      <div class="sec-head"><p class="label">{{livesLabel}}</p><h2 id="lives-h">{{livesTitleHtml}}</h2><p class="sec-body">{{livesBody}}</p></div>
+      <div class="moods">
+        <figure class="mood"><div class="screen mini"><img src="/assets/humor-feliz.png" alt="" width="96" height="96"></div><figcaption><span class="mood-name">{{moodHappy}}</span><span class="mood-when">{{whenHappy}}</span></figcaption></figure>
+        <figure class="mood"><div class="screen mini"><img src="/assets/humor-comendo.png" alt="" width="96" height="96"></div><figcaption><span class="mood-name">{{moodEating}}</span><span class="mood-when">{{whenEating}}</span></figcaption></figure>
+        <figure class="mood"><div class="screen mini"><img src="/assets/humor-dormindo.png" alt="" width="96" height="96"></div><figcaption><span class="mood-name">{{moodSleeping}}</span><span class="mood-when">{{whenSleeping}}</span></figcaption></figure>
+        <figure class="mood"><div class="screen mini"><img src="/assets/humor-com-fome.png" alt="" width="96" height="96"></div><figcaption><span class="mood-name">{{moodHungry}}</span><span class="mood-when">{{whenHungry}}</span></figcaption></figure>
+        <figure class="mood"><div class="screen mini"><img src="/assets/humor-faminto.png" alt="" width="96" height="96"></div><figcaption><span class="mood-name">{{moodStarving}}</span><span class="mood-when">{{whenStarving}}</span></figcaption></figure>
+        <figure class="mood"><div class="screen mini"><img src="/assets/humor-fraco.png" alt="" width="96" height="96"></div><figcaption><span class="mood-name">{{moodWeak}}</span><span class="mood-when">{{whenWeak}}</span></figcaption></figure>
+        <figure class="mood"><div class="screen mini"><img src="/assets/humor-morto.png" alt="" width="96" height="96"></div><figcaption><span class="mood-name">{{moodDead}}</span><span class="mood-when">{{whenDead}}</span></figcaption></figure>
       </div>
     </section>
-    <section class="privacy wrap">
-      <span class="privacy-icon" aria-hidden="true">⌁</span>
-      <h3>{{privacyTitle}}</h3>
-      <p>{{privacyBodyHtml}}</p>
-      <span class="local-badge">{{localBadge}}</span>
-    </section>
-    <section id="download" class="download wrap section">
-      <p class="eyebrow">{{dlEyebrow}}</p>
-      <h2>{{dlTitleHtml}}</h2>
-      <p>{{dlIntro}}</p>
-      <div class="download-options" role="group" aria-label="{{osLabel}}">
-        <button type="button" data-os="macos" aria-pressed="true">macOS</button>
-        <button type="button" data-os="windows" aria-pressed="false">Windows</button>
-        <button type="button" data-os="linux" aria-pressed="false">Linux</button>
+
+    <section id="how" class="feed-sec" aria-labelledby="feed-h">
+      <div class="wrap">
+        <div class="sec-head"><p class="label">{{feedLabel}}</p><h2 id="feed-h">{{feedTitleHtml}}</h2></div>
+        <ol class="feed">
+          <li class="feed-step"><span class="feed-n">01</span><h3>{{feed1Title}}</h3><p>{{feed1Body}}</p></li>
+          <li class="feed-step"><span class="feed-n">02</span><h3>{{feed2Title}}</h3><p>{{feed2BodyHtml}}</p></li>
+          <li class="feed-step"><span class="feed-n">03</span><h3>{{feed3Title}}</h3><p>{{feed3Body}}</p></li>
+          <li class="feed-step"><span class="feed-n">04</span><h3>{{feed4Title}}</h3><p>{{feed4Body}}</p></li>
+        </ol>
+        <div class="feed-foot">
+          <p class="feed-note">{{feedNoteHtml}}</p>
+          <div class="meters" aria-hidden="true">
+            <div class="meter"><div class="meter-head"><span>{{meterSat}}</span><span class="label tag">{{illustrative}}</span></div><div class="track"><span class="fill sat" style="width:64%"></span></div></div>
+            <div class="meter"><div class="meter-head"><span>{{meterHealth}}</span></div><div class="track"><span class="fill hp" style="width:88%"></span></div></div>
+          </div>
+        </div>
       </div>
-      <div id="download-result" aria-live="polite">{{downloadHtml}}</div>
+    </section>
+
+    <section id="evolution" class="evo wrap" aria-labelledby="evo-h">
+      <div class="sec-head row"><div><p class="label">{{evoLabel}}</p><h2 id="evo-h">{{evoTitleHtml}}</h2></div><p class="sec-body">{{evoIntro}}</p></div>
+      <div class="screen evo-screen"><img src="/assets/evolucao.png" width="1280" height="128" alt="{{evoAlt}}"></div>
+      <p class="foot">{{evoFoot}}</p>
+    </section>
+
+    <section class="priv wrap" aria-labelledby="priv-h">
+      <div class="priv-card">
+        <div><p class="label">{{privLabel}}</p><h2 id="priv-h">{{privTitle}}</h2><p>{{privBody}}</p></div>
+        <dl class="priv-list">
+          <div><dt>{{privReads}}</dt><dd>{{privReadsBodyHtml}}</dd></div>
+          <div><dt>{{privStays}}</dt><dd>{{privStaysBody}}</dd></div>
+          <div><dt>{{privNet}}</dt><dd>{{privNetBody}}</dd></div>
+          <div><dt>{{privSource}}</dt><dd>{{privSourceBody}}</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section id="download" class="dl wrap" aria-labelledby="dl-h">
+      <div class="sec-head center"><p class="label">{{dlLabel}}</p><h2 id="dl-h">{{dlTitleHtml}}</h2></div>
+      <div class="mobile-card">
+        <img class="px" src="/assets/estagio-broto.png" alt="" width="64" height="64">
+        <h3>{{mobileTitle}}</h3>
+        <p>{{mobileBody}}</p>
+        <div class="mobile-actions">
+          <button type="button" class="btn btn-primary" id="copy-link">{{copyLink}}</button>
+          <button type="button" class="btn btn-secondary" id="share-link">{{shareLink}}</button>
+        </div>
+        <p class="mobile-url"><code id="mobile-url">tokengotchi.app/{{locale}}/</code></p>
+      </div>
+      <button type="button" class="phone-summary" id="phone-files-toggle" aria-controls="download-desktop" aria-expanded="false">{{otherFiles}}</button>
+      <noscript><style>.os-tabs{display:none}.help-os{display:block}</style></noscript>
+      <div id="download-desktop">
+          <div class="os-tabs" role="tablist" aria-label="{{osLabel}}">
+            <button type="button" class="os-tab" role="tab" id="tab-macos" data-os="macos" aria-selected="true" aria-controls="os-panel">macOS</button>
+            <button type="button" class="os-tab" role="tab" id="tab-windows" data-os="windows" aria-selected="false" tabindex="-1" aria-controls="os-panel">Windows</button>
+            <button type="button" class="os-tab" role="tab" id="tab-linux" data-os="linux" aria-selected="false" tabindex="-1" aria-controls="os-panel">Linux</button>
+          </div>
+          <div class="os-panel" role="tabpanel" id="os-panel" aria-labelledby="tab-macos">
+            <div id="dl-files">{{fileCardsHtml}}</div>
+            <div class="help help-macos" data-help="macos">
+              <p class="help-os">macOS</p>
+              <h3 class="help-title">{{firstOpen}}</h3>
+              <p class="help-lead">{{macLead}}</p>
+              <div class="help-cols">
+                <div class="help-col"><p class="help-sub">{{macSeqTitle}}</p><ol class="steps"><li>{{macSeq1}}</li><li>{{macSeq2}}</li><li>{{macSeq3}}</li></ol></div>
+                <div class="help-col"><p class="help-sub">{{macSonTitle}}</p><p>{{macSon}}</p></div>
+              </div>
+            </div>
+            <div class="help help-windows" data-help="windows">
+              <p class="help-os">Windows</p>
+              <h3 class="help-title">{{firstOpen}}</h3>
+              <p class="help-lead">{{winLead}}</p>
+              <div class="help-cols"><div class="help-col"><p class="help-sub">{{winWarnTitle}}</p><p>{{winWarn}}</p></div></div>
+            </div>
+            <div class="help help-linux" data-help="linux">
+              <p class="help-os">Linux</p>
+              <h3 class="help-title">{{installTitle}}</h3>
+              <p class="help-lead" id="apt-lead">{{linuxChipLead}}</p>
+              <div class="apt" id="apt-rows">{{aptHtml}}</div>
+            </div>
+            <div class="dl-meta" id="dl-meta">{{metaHtml}}</div>
+          </div>
+      </div>
       <noscript>{{noscriptHtml}}</noscript>
-      <p class="download-detail" id="download-detail">{{detailMac}}</p>
-      <div id="download-verify">{{checksumHtml}}</div>
     </section>
   </main>
-  <footer class="wrap">
-    <a class="brand" href="/{{locale}}/"><img src="/assets/estagio-broto.png" width="32" height="32" alt="">tokengotchi</a>
+  <footer class="wrap foot-bar">
+    <a class="brand" href="/{{locale}}/"><img class="px" src="/assets/estagio-broto.png" width="32" height="32" alt="">tokengotchi</a>
     <span>{{footerTag}}</span>
-    <span>© <span id="year">{{year}}</span> {{footerCopy}}</span>
+    <span><a href="https://github.com/vitorjpr/tokengotchi">GitHub</a> · MIT · © <span id="year">{{year}}</span></span>
   </footer>
   <script type="application/json" id="ui-copy">{{uiJson}}</script>
 </body>

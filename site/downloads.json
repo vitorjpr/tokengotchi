@@ -2,36 +2,36 @@
   "macos": [
     {
       "label": "macOS · Apple Silicon",
-      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.1/Tokengotchi-0.5.1-arm64.dmg",
+      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.2/Tokengotchi-0.5.2-arm64.dmg",
       "arch": "arm64"
     },
     {
       "label": "macOS · Intel",
-      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.1/Tokengotchi-0.5.1-x64.dmg",
+      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.2/Tokengotchi-0.5.2-x64.dmg",
       "arch": "x64"
     }
   ],
   "windows": [
     {
       "label": "Windows · x64 (zip)",
-      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.1/Tokengotchi-0.5.1-win.zip",
+      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.2/Tokengotchi-0.5.2-win.zip",
       "arch": "x64"
     },
     {
       "label": "Windows · arm64 (zip)",
-      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.1/Tokengotchi-0.5.1-arm64-win.zip",
+      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.2/Tokengotchi-0.5.2-arm64-win.zip",
       "arch": "arm64"
     }
   ],
   "linux": [
     {
       "label": "Debian (x64)",
-      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.1/tokengotchi_0.5.1_amd64.deb",
+      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.2/tokengotchi_0.5.2_amd64.deb",
       "arch": "x64"
     },
     {
       "label": "Debian (arm64)",
-      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.1/tokengotchi_0.5.1_arm64.deb",
+      "url": "https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.2/tokengotchi_0.5.2_arm64.deb",
       "arch": "arm64"
     }
   ]

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { build, renderChecksum, renderDownloadResult, renderNoscript } from './build.mjs';
+import { build, renderChecksum, renderDownloadResult, renderFileCardsHtml, renderMetaHtml, renderNoscript } from './build.mjs';
 import { copy } from './copy.mjs';
 import { inlineCodeSegments } from './inline-code.mjs';
 import {
@@ -17,6 +17,7 @@ import {
   heroMetaLine,
   linuxDetail,
   listDownloads,
+  preferredArchWhenUnknown,
   releaseNotesUrl,
   selectDownloads,
   validateManifest,
@@ -359,6 +360,13 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   assert.doesNotMatch(css, /fonts\.googleapis\.com/);
   assert.match(css, /image-rendering:\s*crisp-edges;\s*image-rendering:\s*pixelated/);
   assert.doesNotMatch(css, /data-locale=.pt.[\s\S]*font-size/);
+  assert.match(en, /Not sure\? Apple menu &gt; About This Mac/);
+  assert.match(pt, /Não tem certeza\? Menu Apple &gt; Sobre este Mac/);
+  for (const html of [en, pt]) {
+    assert.doesNotMatch(html, /\?token=/);
+    for (const url of htmlDownloadUrls(html)) assertPublicReleaseAsset(url);
+  }
+  for (const url of manifestDownloadUrls(manifest)) assertPublicReleaseAsset(url);
 
   await assert.rejects(access(new URL('./dist/en/downloads.json', import.meta.url)));
   await assert.rejects(access(new URL('./dist/pt/assets/estagio-ovo.png', import.meta.url)));
@@ -611,7 +619,7 @@ test('phones get a computer path and desktops link the detected file', () => {
   assert.equal(both.files.filter((file) => file.badge).length, 1);
 });
 
-test('Safari on an Intel Mac does not get an Apple Silicon download', async () => {
+test('Safari with no arch signal recommends Apple Silicon in the chooser', async () => {
   const safari = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15';
   const arch = archFromSignals({ userAgent: safari, renderer: 'Apple GPU' });
   assert.equal(arch, null);
@@ -639,7 +647,12 @@ test('Safari on an Intel Mac does not get an Apple Silicon download', async () =
     ui: copy.en.ui,
   });
   assert.equal(view.files.length, 2);
+  assert.deepEqual(view.files.map((file) => file.arch), ['arm64', 'x64']);
+  assert.equal(view.files[0].recommended, true);
+  assert.equal(view.files[1].recommended, false);
+  assert.equal(view.files[1].archLabel, 'Intel');
   assert.equal(view.files.filter((file) => file.badge).length, 0);
+  assert.equal(view.hint, 'Not sure? Apple menu > About This Mac');
   assert.ok(view.files.some((file) => file.name.endsWith('-arm64.dmg')));
   assert.ok(view.files.some((file) => file.name.endsWith('-x64.dmg')));
 
@@ -685,6 +698,8 @@ test('Safari on an Intel Mac does not get an Apple Silicon download', async () =
     'Tokengotchi-0.5.3-arm64-win.zip',
   ]);
   assert.equal(windowsUnknown.files.filter((file) => file.badge).length, 0);
+  assert.ok(windowsUnknown.files.every((file) => file.recommended === false));
+  assert.equal(windowsUnknown.hint, null);
   assert.equal(heroAction({
     detectedOs: 'windows',
     cpuArch: null,
@@ -698,4 +713,197 @@ test('Safari on an Intel Mac does not get an Apple Silicon download', async () =
   assert.equal(archFromSignals({ userAgent: safari, renderer: 'ANGLE (Apple, Apple M3 Pro, OpenGL 4.1)' }), 'arm64');
   assert.equal(archFromSignals({ renderer: 'Apple GPU' }), null);
   assert.equal(archFromSignals({ userAgent: safari, renderer: 'Intel(R) Iris(TM) Plus Graphics OpenGL Engine' }), 'x64');
+});
+
+const PUBLIC_RELEASE_ASSET = /^https:\/\/github\.com\/vitorjpr\/tokengotchi\/releases\/download\/[^/?#]+\/[^/?#]+$/;
+
+function manifestDownloadUrls(manifest) {
+  const urls = [];
+  for (const os of ['macos', 'windows', 'linux']) {
+    for (const entry of manifest?.[os] || []) {
+      if (typeof entry?.url === 'string') urls.push(entry.url);
+      if (typeof entry?.secondary?.url === 'string') urls.push(entry.secondary.url);
+    }
+  }
+  return urls;
+}
+
+function htmlDownloadUrls(html) {
+  const urls = [];
+  for (const match of String(html).matchAll(/href="([^"]+)"/g)) {
+    const href = match[1].replaceAll('&amp;', '&');
+    if (href.includes('/releases/download/') || href.includes('?') || /\.(?:dmg|zip|deb|exe|AppImage)(?:$|\?)/i.test(href)) {
+      urls.push(href);
+    }
+  }
+  return urls;
+}
+
+function assertPublicReleaseAsset(url) {
+  assert.equal(typeof url, 'string', String(url));
+  assert.doesNotMatch(url, /\?/, url);
+  assert.doesNotMatch(url, /#/, url);
+  assert.match(url, PUBLIC_RELEASE_ASSET, url);
+  const parsed = new URL(url);
+  assert.equal(parsed.search, '', url);
+  assert.equal(parsed.hash, '', url);
+  assert.equal(parsed.username, '', url);
+  assert.equal(parsed.password, '', url);
+}
+
+test('unknown Mac recommends Apple Silicon by rule, and Windows and Linux stay equal', () => {
+  assert.equal(preferredArchWhenUnknown('macos'), 'arm64');
+  assert.equal(preferredArchWhenUnknown('windows'), null);
+  assert.equal(preferredArchWhenUnknown('linux'), null);
+  assert.equal(copy.en.ui.macArchHint, 'Not sure? Apple menu > About This Mac');
+  assert.equal(copy.pt.ui.macArchHint, 'Não tem certeza? Menu Apple > Sobre este Mac');
+
+  const release = (name) => `https://github.com/vitorjpr/tokengotchi/releases/download/v0.5.3/${name}`;
+  const manifest = {
+    macos: [
+      { label: 'macOS · Intel', url: release('intel-first.dmg'), arch: 'x64', size: 111548180 },
+      { label: 'macOS · Universal', url: release('universal.dmg') },
+      { label: 'macOS · Apple Silicon', url: release('arm-last.dmg'), arch: 'arm64', size: 106567851 },
+    ],
+    windows: [
+      { label: 'Windows · arm64 (zip)', url: release('arm-first-win.zip'), arch: 'arm64' },
+      { label: 'Windows · x64 (zip)', url: release('x64-second-win.zip'), arch: 'x64' },
+    ],
+    linux: [
+      { label: 'Debian (arm64)', url: release('arm-first_arm64.deb'), arch: 'arm64' },
+      { label: 'Debian (x64)', url: release('x64-second_amd64.deb'), arch: 'x64' },
+    ],
+  };
+
+  for (const locale of ['en', 'pt']) {
+    const view = downloadView(manifest, 'macos', {
+      detectedOs: 'macos',
+      cpuArch: null,
+      locale,
+      ui: copy[locale].ui,
+    });
+    assert.deepEqual(view.files.map((file) => file.arch), ['arm64', 'x64', 'universal']);
+    assert.equal(view.files[0].recommended, true);
+    assert.equal(view.files[0].badge, false);
+    assert.equal(view.files[0].url, release('arm-last.dmg'));
+    assert.equal(view.files[1].arch, 'x64');
+    assert.equal(view.files[1].archLabel, 'Intel');
+    assert.equal(view.files[1].recommended, false);
+    assert.equal(view.files[1].badge, false);
+    assert.equal(view.files[2].recommended, false);
+    assert.equal(view.hint, copy[locale].ui.macArchHint);
+    const hero = heroAction({
+      detectedOs: 'macos',
+      cpuArch: null,
+      manifest,
+      ui: copy[locale].ui,
+      locale,
+    });
+    assert.equal(hero.kind, 'choose');
+    assert.equal(hero.href, '#download');
+    assert.equal(hero.archLabel, null);
+    assert.equal(
+      heroMetaLine({ detectedOs: 'macos', cpuArch: null, manifest, ui: copy[locale].ui, locale }),
+      locale === 'pt' ? 'v0.5.3 · Grátis, licença MIT' : 'v0.5.3 · Free, MIT-licensed',
+    );
+  }
+
+  const detectedIntel = downloadView(manifest, 'macos', {
+    detectedOs: 'macos',
+    cpuArch: 'x64',
+    locale: 'en',
+    ui: copy.en.ui,
+  });
+  assert.deepEqual(detectedIntel.files.map((file) => file.arch), ['x64', 'universal', 'arm64']);
+  assert.equal(detectedIntel.files[0].badge, true);
+  assert.equal(detectedIntel.files[0].recommended, true);
+  assert.equal(detectedIntel.files[0].archLabel, 'Intel');
+  assert.equal(detectedIntel.files.filter((file) => file.recommended).length, 1);
+  assert.equal(detectedIntel.hint, null);
+  const detectedHero = heroAction({
+    detectedOs: 'macos',
+    cpuArch: 'x64',
+    manifest,
+    ui: copy.en.ui,
+    locale: 'en',
+  });
+  assert.equal(detectedHero.kind, 'file');
+  assert.equal(detectedHero.href, release('intel-first.dmg'));
+
+  const detectedArm = downloadView(manifest, 'macos', {
+    detectedOs: 'macos',
+    cpuArch: 'arm64',
+    locale: 'pt',
+    ui: copy.pt.ui,
+  });
+  assert.equal(detectedArm.files[0].arch, 'arm64');
+  assert.equal(detectedArm.files[0].badge, true);
+  assert.equal(detectedArm.files[0].recommended, true);
+  assert.equal(detectedArm.files[1].archLabel, 'Intel');
+  assert.equal(detectedArm.hint, null);
+
+  for (const os of ['windows', 'linux']) {
+    const view = downloadView(manifest, os, {
+      detectedOs: os,
+      cpuArch: null,
+      locale: 'en',
+      ui: copy.en.ui,
+    });
+    assert.deepEqual(view.files.map((file) => file.arch), ['arm64', 'x64']);
+    assert.ok(view.files.every((file) => file.recommended === false));
+    assert.ok(view.files.every((file) => file.badge === false));
+    assert.equal(view.hint, null);
+    const hero = heroAction({
+      detectedOs: os,
+      cpuArch: null,
+      manifest,
+      ui: copy.en.ui,
+      locale: 'en',
+    });
+    assert.equal(hero.kind, 'choose');
+    assert.equal(hero.href, '#download');
+  }
+
+  const windowsDetected = downloadView(manifest, 'windows', {
+    detectedOs: 'windows',
+    cpuArch: 'x64',
+    locale: 'en',
+    ui: copy.en.ui,
+  });
+  assert.deepEqual(windowsDetected.files.map((file) => [file.arch, file.recommended, file.badge]), [
+    ['x64', true, true],
+    ['arm64', false, false],
+  ]);
+  assert.equal(windowsDetected.hint, null);
+});
+
+test('download URLs are public GitHub release assets with no query string', async () => {
+  const manifest = JSON.parse(await readFile(new URL('./downloads.json', import.meta.url), 'utf8'));
+  const urls = manifestDownloadUrls(manifest);
+  assert.ok(urls.length >= 8);
+  assert.doesNotMatch(JSON.stringify(manifest), /\?/);
+  for (const url of urls) assertPublicReleaseAsset(url);
+
+  let html = '';
+  for (const locale of ['en', 'pt']) {
+    html += renderNoscript(locale, manifest);
+    html += renderChecksum(locale, manifest);
+    html += renderMetaHtml(locale, manifest);
+    for (const os of ['macos', 'windows', 'linux']) html += renderFileCardsHtml(locale, manifest, os);
+  }
+  assert.doesNotMatch(html, /\?token=/);
+  const found = htmlDownloadUrls(html);
+  assert.ok(found.length >= urls.length);
+  for (const url of found) assertPublicReleaseAsset(url);
+  for (const url of urls) assert.ok(html.includes(url), url);
+
+  await build();
+  for (const locale of ['en', 'pt']) {
+    const built = await readFile(new URL(`./dist/${locale}/index.html`, import.meta.url), 'utf8');
+    assert.doesNotMatch(built, /\?token=/);
+    for (const url of htmlDownloadUrls(built)) assertPublicReleaseAsset(url);
+    for (const url of urls) assert.ok(built.includes(url), `${locale} ${url}`);
+  }
+  const builtManifest = JSON.parse(await readFile(new URL('./dist/downloads.json', import.meta.url), 'utf8'));
+  for (const url of manifestDownloadUrls(builtManifest)) assertPublicReleaseAsset(url);
 });

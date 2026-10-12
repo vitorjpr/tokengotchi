@@ -237,17 +237,38 @@ export function releaseTag(manifest) {
 }
 
 /**
+ * Product default when no CPU arch was detected for this OS.
+ * macOS recommends Apple Silicon. The choice is this function, not the
+ * order of files in downloads.json. Windows and Linux return null, so
+ * those files stay equal weight: no primary button and no Detected badge.
+ */
+export function preferredArchWhenUnknown(os) {
+  if (os === 'macos') return 'arm64';
+  return null;
+}
+
+/** Apple Silicon first, Intel second, then anything else. Used only for an unknown Mac. */
+function unknownMacRank(arch) {
+  if (arch === 'arm64') return 0;
+  if (arch === 'x64') return 1;
+  return 2;
+}
+
+/**
  * Files to show for one OS tab. Every arch stays in the list.
- * The detected arch is badged and sorted first. With no detected arch, the
- * first file is the primary button and nothing is badged.
+ * A detected arch is badged and sorted first. With no detected arch, macOS
+ * recommends Apple Silicon (see preferredArchWhenUnknown) and lists Intel
+ * second. Windows and Linux stay in manifest order with nothing recommended
+ * and nothing badged.
  */
 export function downloadView(manifest, os, { detectedOs = null, cpuArch = null, locale = 'en', ui = {} } = {}) {
   const entries = listDownloads(manifest?.[os]);
   const known = normalizeArch(cpuArch);
   const archKnown = os === detectedOs && known && known !== 'universal';
-  const files = entries.map((entry, index) => {
+  const prefer = archKnown ? null : preferredArchWhenUnknown(os);
+  const files = entries.map((entry) => {
     const badge = Boolean(archKnown && entry.arch === known);
-    const recommended = archKnown ? entry.arch === known : index === 0;
+    const recommended = archKnown ? entry.arch === known : entry.arch === prefer;
     const ext = fileExtension(entry.url);
     const archLabel = ui?.arch?.[os]?.[entry.arch] || entry.label;
     const sizeText = formatSize(entry.size, locale);
@@ -286,9 +307,17 @@ export function downloadView(manifest, os, { detectedOs = null, cpuArch = null, 
     };
   });
   if (archKnown) files.sort((a, b) => Number(b.badge) - Number(a.badge));
+  else if (prefer === 'arm64') files.sort((a, b) => unknownMacRank(a.arch) - unknownMacRank(b.arch));
+  const hint = prefer === 'arm64'
+    && files.some((file) => file.arch === 'arm64')
+    && files.some((file) => file.arch === 'x64')
+    && ui?.macArchHint
+    ? ui.macArchHint
+    : null;
   return {
     os,
     files,
+    hint,
     tag: releaseTag(manifest),
     released: formatReleaseDate(manifest?.released, locale),
     notesUrl: releaseNotesUrl(manifest),
@@ -309,6 +338,11 @@ export function heroAction({ detectedOs, cpuArch, manifest, ui = {}, locale = 'e
   const text = String(ui.ctaFor || '').replaceAll('{os}', osName);
   const known = normalizeArch(cpuArch);
   if (!known || known === 'universal') {
+    // preferredArchWhenUnknown still recommends Apple Silicon inside the
+    // macOS chooser. The hero opens #download instead of the .dmg so Intel
+    // stays a visible second choice and the About This Mac hint is on screen
+    // before a file starts. A direct link would also read as a detected arch
+    // in the meta line. A detected arch still links its one matching file below.
     return { kind: 'choose', text, href: '#download', archLabel: null, sizeText: null };
   }
   const preferred = selectDownloads(manifest?.[detectedOs], known);
@@ -449,8 +483,9 @@ export function linuxDetail(ui, entries) {
 
 /**
  * Client hints, then the UA, then an explicit Apple M-series renderer.
- * Returns null when the arch is unknown, and the download list then shows
- * every file for that OS with no badge. Safari reports the renderer as
+ * Returns null when the arch is unknown. The list then shows every file
+ * for that OS with no Detected badge. macOS still recommends Apple Silicon
+ * in that case; Windows and Linux do not. Safari reports the renderer as
  * "Apple GPU" on every Mac, Intel included, so that string is not a signal.
  * Windows on ARM is `arm` in client hints, or `ARM64` in the UA. A UA that
  * only says `Win64; x64` stays x64; both Windows zips stay on the page either way.

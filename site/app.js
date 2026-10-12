@@ -156,6 +156,12 @@ function renderCards(view) {
     }
     grid.append(card);
   }
+  if (view.hint) {
+    const hint = document.createElement('p');
+    hint.className = 'dl-arch-hint';
+    hint.textContent = view.hint;
+    grid.append(hint);
+  }
   host.append(grid);
 }
 

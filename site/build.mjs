@@ -87,7 +87,8 @@ export function renderFileCardsHtml(locale, manifest, os = 'macos') {
     const rec = file.recommended ? ' is-rec' : '';
     return `<div class="dl-file${rec}"><div class="dl-file-head"><span class="dl-arch">${escapeHtml(file.archLabel)}</span>${badge}</div>${name}${size}<a class="btn ${kind}" href="${escapeHtml(file.url)}" aria-label="${escapeHtml(file.ariaLabel)}">${escapeHtml(file.buttonText)}</a>${renderSecondaryLink(file)}</div>`;
   }).join('');
-  return `<div class="dl-files">${cards}</div>`;
+  const hint = view.hint ? `<p class="dl-arch-hint">${escapeHtml(view.hint)}</p>` : '';
+  return `<div class="dl-files">${cards}${hint}</div>`;
 }
 
 export function renderAptHtml(locale, entries) {

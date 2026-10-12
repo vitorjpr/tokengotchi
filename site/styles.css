@@ -426,6 +426,16 @@ html[data-device="phone"] #download-desktop.is-open { display: block; margin-top
 .dl-name { font: 14px var(--mono); color: var(--app-text-soft); overflow-wrap: anywhere; }
 .dl-size { font-size: 14px; color: var(--app-text-soft); }
 .dl-file .btn { margin-top: 10px; }
+.dl-alt {
+  justify-self: stretch;
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--app-text);
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.dl-alt code { font: 13px var(--mono); color: var(--app-text-soft); }
 .help { margin-top: 18px; padding: 18px 20px; border-radius: 12px; background: var(--app-bg); border: 1px solid var(--app-border); }
 .help-os { display: none; margin: 0 0 8px; font: 600 16px var(--sans); }
 .help-title { font: 600 13px var(--mono); text-transform: uppercase; letter-spacing: .12em; margin: 0 0 6px; }

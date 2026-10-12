@@ -64,6 +64,14 @@ export function validateManifest(manifest) {
           errors.push(`${os}[${index}] size must be a positive integer of bytes`);
         }
       }
+      if (entry && Object.hasOwn(entry, 'secondary') && entry.secondary != null) {
+        const alt = entry.secondary;
+        if (!alt || typeof alt !== 'object' || Array.isArray(alt) || !isPublicHttps(alt.url)) {
+          errors.push(`${os}[${index}] secondary needs a public https URL`);
+        } else if (Object.hasOwn(alt, 'size') && alt.size != null && (!Number.isInteger(alt.size) || alt.size <= 0)) {
+          errors.push(`${os}[${index}] secondary size must be a positive integer of bytes`);
+        }
+      }
     });
   }
   return errors;
@@ -97,24 +105,44 @@ export function githubReleaseBase(url) {
  * SHA256SUMS URL for the release that published every asset, or null.
  * Derived only when every manifest URL shares one GitHub release base.
  */
+function releaseBases(entry) {
+  const urls = [entry?.url];
+  if (entry && Object.hasOwn(entry, 'secondary') && entry.secondary != null) urls.push(entry.secondary?.url);
+  return urls;
+}
+
 export function checksumUrl(manifest) {
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) return null;
   const bases = new Set();
   for (const os of ['macos', 'windows', 'linux']) {
     if (!Array.isArray(manifest[os])) return null;
     for (const entry of manifest[os]) {
-      const base = githubReleaseBase(entry?.url);
-      if (!base) return null;
-      bases.add(base);
+      for (const url of releaseBases(entry)) {
+        const base = githubReleaseBase(url);
+        if (!base) return null;
+        bases.add(base);
+      }
     }
   }
   if (bases.size !== 1) return null;
   return `${[...bases][0]}/SHA256SUMS`;
 }
 
+/** Optional same-arch file, such as a macOS .zip next to the .dmg. Invalid alts are dropped. */
+function secondaryOf(entry) {
+  const alt = entry?.secondary;
+  if (!alt || typeof alt !== 'object' || Array.isArray(alt)) return null;
+  if (typeof alt.url !== 'string' || !isPublicHttps(alt.url)) return null;
+  if (Object.hasOwn(alt, 'size') && alt.size != null && (!Number.isInteger(alt.size) || alt.size <= 0)) return null;
+  const size = Number.isInteger(alt.size) && alt.size > 0 ? alt.size : null;
+  return { url: new URL(alt.url).href, size };
+}
+
 /**
  * Every valid file for one OS, in manifest order. Never drops an architecture.
  * `size` is a positive byte count, or null when the manifest omits it.
+ * `secondary` is an extra file for the same arch. It is not another row, so the
+ * hero still has one preferred file when the arch matches.
  */
 export function listDownloads(entries) {
   if (!Array.isArray(entries)) return [];
@@ -126,7 +154,7 @@ export function listDownloads(entries) {
     const arch = entry.arch == null || entry.arch === '' ? 'universal' : normalizeArch(entry.arch);
     if (!arch) continue;
     const size = Number.isInteger(entry.size) && entry.size > 0 ? entry.size : null;
-    valid.push({ label, url: new URL(entry.url).href, arch, size });
+    valid.push({ label, url: new URL(entry.url).href, arch, size, secondary: secondaryOf(entry) });
   }
   return valid;
 }
@@ -228,6 +256,21 @@ export function downloadView(manifest, os, { detectedOs = null, cpuArch = null, 
       : String(ui?.download || '{label}').replaceAll('{label}', entry.label);
     const ariaBits = [buttonText, ui?.os?.[os] || os, archLabel];
     if (sizeText) ariaBits.push(sizeText);
+    let secondary = null;
+    if (entry.secondary) {
+      const altExt = fileExtension(entry.secondary.url);
+      const altSize = formatSize(entry.secondary.size, locale);
+      const altName = fileNameOf(entry.secondary.url);
+      const altText = ui?.zipAlt || (altExt && ui?.dlBtn ? ui.dlBtn.replaceAll('{ext}', altExt) : altExt);
+      secondary = {
+        url: entry.secondary.url,
+        name: altName,
+        sizeText: altSize,
+        ext: altExt,
+        text: altText,
+        ariaLabel: [altText, archLabel, altName, altSize].filter(Boolean).join(' · '),
+      };
+    }
     return {
       arch: entry.arch,
       archLabel,
@@ -239,6 +282,7 @@ export function downloadView(manifest, os, { detectedOs = null, cpuArch = null, 
       badge,
       buttonText,
       ariaLabel: ariaBits.filter(Boolean).join(' · '),
+      secondary,
     };
   });
   if (archKnown) files.sort((a, b) => Number(b.badge) - Number(a.badge));
@@ -405,8 +449,11 @@ export function linuxDetail(ui, entries) {
 
 /**
  * Client hints, then the UA, then an explicit Apple M-series renderer.
- * Returns null when the arch is unknown. Safari reports the renderer as
+ * Returns null when the arch is unknown, and the download list then shows
+ * every file for that OS with no badge. Safari reports the renderer as
  * "Apple GPU" on every Mac, Intel included, so that string is not a signal.
+ * Windows on ARM is `arm` in client hints, or `ARM64` in the UA. A UA that
+ * only says `Win64; x64` stays x64; both Windows zips stay on the page either way.
  */
 export function archFromSignals({ userAgent = '', architecture = '', renderer = '' } = {}) {
   const hinted = String(architecture || '').toLowerCase();

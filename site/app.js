@@ -139,6 +139,21 @@ function renderCards(view) {
     link.textContent = file.buttonText;
     if (file.ariaLabel) link.setAttribute('aria-label', file.ariaLabel);
     card.append(link);
+    if (file.secondary?.url && file.secondary.text) {
+      const alt = document.createElement('a');
+      alt.className = 'dl-alt';
+      alt.href = file.secondary.url;
+      if (file.secondary.ariaLabel) alt.setAttribute('aria-label', file.secondary.ariaLabel);
+      alt.append(file.secondary.text);
+      if (file.secondary.name) {
+        alt.append(' · ');
+        const name = document.createElement('code');
+        name.textContent = file.secondary.name;
+        alt.append(name);
+      }
+      if (file.secondary.sizeText) alt.append(` · ${file.secondary.sizeText}`);
+      card.append(alt);
+    }
     grid.append(card);
   }
   host.append(grid);

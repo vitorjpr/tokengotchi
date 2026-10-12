@@ -63,6 +63,15 @@ export function renderChecksum(locale, manifest) {
   return `${link}<p class="checksum-note">${escapeHtml(checksumNote)}</p>`;
 }
 
+function renderSecondaryLink(file) {
+  const alt = file.secondary;
+  if (!alt?.url || !alt.text) return '';
+  const bits = [escapeHtml(alt.text)];
+  if (alt.name) bits.push(`<code>${escapeHtml(alt.name)}</code>`);
+  if (alt.sizeText) bits.push(escapeHtml(alt.sizeText));
+  return `<a class="dl-alt" href="${escapeHtml(alt.url)}" aria-label="${escapeHtml(alt.ariaLabel)}">${bits.join(' · ')}</a>`;
+}
+
 export function renderFileCardsHtml(locale, manifest, os = 'macos') {
   const page = copy[locale];
   const view = downloadView(manifest, os, { locale, ui: page.ui });
@@ -76,7 +85,7 @@ export function renderFileCardsHtml(locale, manifest, os = 'macos') {
     const size = file.sizeText ? `<span class="dl-size">${escapeHtml(file.sizeText)}</span>` : '';
     const kind = file.recommended ? 'btn-primary' : 'btn-secondary';
     const rec = file.recommended ? ' is-rec' : '';
-    return `<div class="dl-file${rec}"><div class="dl-file-head"><span class="dl-arch">${escapeHtml(file.archLabel)}</span>${badge}</div>${name}${size}<a class="btn ${kind}" href="${escapeHtml(file.url)}" aria-label="${escapeHtml(file.ariaLabel)}">${escapeHtml(file.buttonText)}</a></div>`;
+    return `<div class="dl-file${rec}"><div class="dl-file-head"><span class="dl-arch">${escapeHtml(file.archLabel)}</span>${badge}</div>${name}${size}<a class="btn ${kind}" href="${escapeHtml(file.url)}" aria-label="${escapeHtml(file.ariaLabel)}">${escapeHtml(file.buttonText)}</a>${renderSecondaryLink(file)}</div>`;
   }).join('');
   return `<div class="dl-files">${cards}</div>`;
 }
@@ -113,6 +122,10 @@ export function renderNoscript(locale, manifest) {
     for (const entry of selectDownloads(manifest?.[os], null)) {
       const label = page.ui.download.replaceAll('{label}', entry.label);
       items.push(`<li><a class="btn btn-secondary" href="${escapeHtml(entry.url)}">${escapeHtml(label)}</a></li>`);
+      if (entry.secondary?.url && page.ui.zipAlt) {
+        const altLabel = `${page.ui.zipAlt} · ${entry.label}`;
+        items.push(`<li><a class="btn btn-secondary" href="${escapeHtml(entry.secondary.url)}">${escapeHtml(altLabel)}</a></li>`);
+      }
     }
   }
   if (!items.length) return `<p>${escapeHtml(page.noscriptSoon)}</p>`;

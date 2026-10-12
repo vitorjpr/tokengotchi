@@ -138,6 +138,29 @@ test('download selection stays compatible with empty arrays and https-only arch 
     windows: [{ label: 'B', url: release('Tokengotchi-win.zip') }],
     linux: [{ label: 'C', url: release('tokengotchi_amd64.deb') }],
   }), 'https://github.com/acme/tokengotchi/releases/download/v9.9.9/SHA256SUMS');
+  assert.equal(checksumUrl({
+    macos: [{
+      label: 'A',
+      url: release('a.dmg'),
+      secondary: { url: release('a-mac.zip') },
+    }],
+    windows: [],
+    linux: [],
+  }), 'https://github.com/acme/tokengotchi/releases/download/v9.9.9/SHA256SUMS');
+  assert.equal(checksumUrl({
+    macos: [{
+      label: 'A',
+      url: release('a.dmg'),
+      secondary: { url: 'https://github.com/acme/tokengotchi/releases/download/v0.0.1/a.zip' },
+    }],
+    windows: [],
+    linux: [],
+  }), null);
+  assert.ok(validateManifest({
+    macos: [{ label: 'A', url: 'https://example.com/a.dmg', secondary: { url: 'http://example.com/a.zip' } }],
+    windows: [],
+    linux: [],
+  }).some((error) => error.includes('secondary')));
 });
 
 test('required lines stay in both languages and avoid a paid tier', () => {
@@ -213,6 +236,8 @@ test('required lines stay in both languages and avoid a paid tier', () => {
   assert.match(copy.pt.ui.detail.macos, /No macOS 14 \(Sonoma\) ou anterior, clique com o botão direito \(ou segure Control e clique\)/);
   assert.match(copy.pt.ui.detail.macos, /Abrir Mesmo Assim/);
   assert.match(copy.pt.ui.detail.macos, /primeiro tente abrir o app, escolha "Concluído"/);
+  assert.equal(copy.en.ui.zipAlt, 'Or download the .zip');
+  assert.equal(copy.pt.ui.zipAlt, 'Ou baixe o .zip');
   assert.equal(copy.en.ui.checksum, 'Verify downloads (SHA256SUMS)');
   assert.equal(copy.pt.ui.checksum, 'Conferir os downloads (SHA256SUMS)');
   assert.equal(copy.en.ui.checksumNote, 'SHA256SUMS is published in the same release, so it detects corrupted downloads, not a compromised release.');
@@ -304,10 +329,30 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   assert.match(en, /<noscript><style>\.os-tabs\{display:none\}\.help-os\{display:block\}<\/style><\/noscript>/);
   assert.match(en, /More info/);
   assert.match(en, /sudo apt install \.\//);
-  assert.match(en, /Oct 8, 2026/);
-  assert.match(pt, /8 out\. 2026/);
-  assert.match(en, /Tokengotchi-0\.5\.2-arm64\.dmg/);
-  assert.match(en, /Tokengotchi-0\.5\.2-x64\.dmg/);
+  assert.match(en, /Oct 12, 2026/);
+  assert.match(pt, /12 out\. 2026/);
+  assert.match(en, /Tokengotchi-0\.5\.3-arm64\.dmg/);
+  assert.match(en, /Tokengotchi-0\.5\.3-x64\.dmg/);
+  assert.match(en, /Tokengotchi-0\.5\.3-arm64-mac\.zip/);
+  assert.match(en, /Tokengotchi-0\.5\.3-x64-mac\.zip/);
+  assert.match(pt, /Tokengotchi-0\.5\.3-arm64-mac\.zip/);
+  assert.match(pt, /Tokengotchi-0\.5\.3-x64-mac\.zip/);
+  assert.match(en, /Tokengotchi-0\.5\.3-win\.zip/);
+  assert.match(en, /Tokengotchi-0\.5\.3-arm64-win\.zip/);
+  assert.match(en, /tokengotchi_0\.5\.3_amd64\.deb/);
+  assert.match(en, /tokengotchi_0\.5\.3_arm64\.deb/);
+  assert.match(en, /Or download the \.zip/);
+  assert.match(pt, /Ou baixe o \.zip/);
+  assert.match(en, /106\.4 MB/);
+  assert.match(pt, /106,4 MB/);
+  assert.match(en, /111\.4 MB/);
+  assert.match(pt, /111,4 MB/);
+  assert.match(en, /sudo apt install \.\/tokengotchi_0\.5\.3_amd64\.deb/);
+  assert.match(en, /sudo apt install \.\/tokengotchi_0\.5\.3_arm64\.deb/);
+  assert.doesNotMatch(en, /v0\.5\.2/);
+  assert.doesNotMatch(pt, /v0\.5\.2/);
+  assert.doesNotMatch(en, /\.rpm|AppImage|Setup/i);
+  assert.doesNotMatch(pt, /\.rpm|AppImage|Setup/i);
   assert.doesNotMatch(en, /fonts\.googleapis\.com/);
   assert.doesNotMatch(pt, /fonts\.googleapis\.com/);
   const css = await readFile(new URL('./dist/styles.css', import.meta.url), 'utf8');
@@ -433,12 +478,20 @@ test('every architecture stays listed, and size and date render only when presen
   assert.doesNotMatch(sentence, /<version>/);
 
   // Bytes from the GitHub release API for the tag named in these URLs.
-  assert.equal(manifest.macos.find((entry) => entry.arch === 'arm64').size, 106564099);
-  assert.equal(manifest.macos.find((entry) => entry.arch === 'x64').size, 111547831);
-  assert.equal(manifest.windows.find((entry) => entry.arch === 'x64').size, 133998834);
-  assert.equal(manifest.windows.find((entry) => entry.arch === 'arm64').size, 130523848);
-  assert.equal(manifest.linux.find((entry) => entry.arch === 'x64').size, 91131184);
-  assert.equal(manifest.linux.find((entry) => entry.arch === 'arm64').size, 84665716);
+  const armMac = manifest.macos.find((entry) => entry.arch === 'arm64');
+  const intelMac = manifest.macos.find((entry) => entry.arch === 'x64');
+  assert.equal(armMac.size, 106567851);
+  assert.equal(armMac.secondary.size, 106382685);
+  assert.equal(intelMac.size, 111548180);
+  assert.equal(intelMac.secondary.size, 111400623);
+  assert.equal(manifest.windows.find((entry) => entry.arch === 'x64').size, 134000219);
+  assert.equal(manifest.windows.find((entry) => entry.arch === 'arm64').size, 130525238);
+  assert.equal(manifest.linux.find((entry) => entry.arch === 'x64').size, 91131772);
+  assert.equal(manifest.linux.find((entry) => entry.arch === 'arm64').size, 84666528);
+  assert.ok(manifest.macos.every((entry) => entry.url.endsWith('.dmg')));
+  assert.ok(manifest.macos.every((entry) => entry.secondary.url.endsWith('-mac.zip')));
+  assert.equal(manifest.windows.some((entry) => entry.url.endsWith('.exe')), false);
+  assert.equal(manifest.linux.some((entry) => /\.(AppImage|rpm)$/.test(entry.url)), false);
 
   for (const os of ['macos', 'windows', 'linux']) {
     const all = listDownloads(manifest[os]);
@@ -463,7 +516,39 @@ test('every architecture stays listed, and size and date render only when presen
   assert.equal(formatSize(111547831, 'en'), '111.5 MB');
   assert.equal(formatReleaseDate('2026-10-08', 'en'), 'Oct 8, 2026');
   assert.equal(formatReleaseDate('2026-10-08', 'pt'), '8 out. 2026');
-  assert.equal(formatReleaseDate(manifest.released, 'en'), 'Oct 8, 2026');
+  assert.equal(formatReleaseDate(manifest.released, 'en'), 'Oct 12, 2026');
+  assert.equal(formatReleaseDate(manifest.released, 'pt'), '12 out. 2026');
+  assert.equal(formatSize(106567851, 'en'), '106.6 MB');
+  assert.equal(formatSize(106382685, 'en'), '106.4 MB');
+  assert.equal(formatSize(106382685, 'pt'), '106,4 MB');
+  assert.equal(formatSize(111400623, 'en'), '111.4 MB');
+  assert.equal(formatSize(134000219, 'en'), '134.0 MB');
+  assert.equal(formatSize(130525238, 'en'), '130.5 MB');
+  assert.equal(formatSize(91131772, 'en'), '91.1 MB');
+  assert.equal(formatSize(84666528, 'pt'), '84,7 MB');
+
+  const macFiles = downloadView(manifest, 'macos', { locale: 'en', ui: copy.en.ui });
+  const armFile = macFiles.files.find((file) => file.arch === 'arm64');
+  assert.equal(armFile.name, 'Tokengotchi-0.5.3-arm64.dmg');
+  assert.equal(armFile.sizeText, '106.6 MB');
+  assert.equal(armFile.secondary.name, 'Tokengotchi-0.5.3-arm64-mac.zip');
+  assert.equal(armFile.secondary.sizeText, '106.4 MB');
+  assert.equal(armFile.secondary.text, copy.en.ui.zipAlt);
+  const ptMac = downloadView(manifest, 'macos', { locale: 'pt', ui: copy.pt.ui });
+  const intelFile = ptMac.files.find((file) => file.arch === 'x64');
+  assert.equal(intelFile.secondary.sizeText, '111,4 MB');
+  assert.equal(intelFile.secondary.text, copy.pt.ui.zipAlt);
+  const macHero = heroAction({
+    detectedOs: 'macos',
+    cpuArch: 'arm64',
+    manifest,
+    ui: copy.en.ui,
+    locale: 'en',
+  });
+  assert.equal(macHero.kind, 'file');
+  assert.equal(macHero.href, armMac.url);
+  assert.match(macHero.href, /Tokengotchi-0\.5\.3-arm64\.dmg$/);
+  assert.equal(macHero.sizeText, '106.6 MB');
 
   const bare = {
     macos: [{ label: 'macOS · Apple Silicon', url: 'https://example.com/a.dmg', arch: 'arm64' }],
@@ -544,7 +629,7 @@ test('Safari on an Intel Mac does not get an Apple Silicon download', async () =
   assert.doesNotMatch(action.href, /arm64|\.dmg/);
   assert.equal(
     heroMetaLine({ detectedOs: 'macos', cpuArch: arch, manifest, ui: copy.en.ui, locale: 'en' }),
-    'v0.5.2 · Free, MIT-licensed',
+    'v0.5.3 · Free, MIT-licensed',
   );
 
   const view = downloadView(manifest, 'macos', {
@@ -557,6 +642,56 @@ test('Safari on an Intel Mac does not get an Apple Silicon download', async () =
   assert.equal(view.files.filter((file) => file.badge).length, 0);
   assert.ok(view.files.some((file) => file.name.endsWith('-arm64.dmg')));
   assert.ok(view.files.some((file) => file.name.endsWith('-x64.dmg')));
+
+  assert.equal(archFromSignals({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; ARM64) AppleWebKit/537.36',
+  }), 'arm64');
+  assert.equal(archFromSignals({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    architecture: 'arm',
+  }), 'arm64');
+  assert.equal(archFromSignals({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  }), 'x64');
+  assert.equal(archFromSignals({ userAgent: 'Mozilla/5.0 (Windows NT 10.0)' }), null);
+
+  const windowsArm = heroAction({
+    detectedOs: 'windows',
+    cpuArch: 'arm64',
+    manifest,
+    ui: copy.en.ui,
+    locale: 'en',
+  });
+  assert.equal(windowsArm.kind, 'file');
+  assert.match(windowsArm.href, /Tokengotchi-0\.5\.3-arm64-win\.zip$/);
+  assert.equal(windowsArm.sizeText, '130.5 MB');
+  const windowsKnown = downloadView(manifest, 'windows', {
+    detectedOs: 'windows',
+    cpuArch: 'arm64',
+    locale: 'en',
+    ui: copy.en.ui,
+  });
+  assert.deepEqual(windowsKnown.files.map((file) => file.arch), ['arm64', 'x64']);
+  assert.equal(windowsKnown.files.filter((file) => file.badge).length, 1);
+  assert.ok(windowsKnown.files.every((file) => file.url.endsWith('.zip')));
+  const windowsUnknown = downloadView(manifest, 'windows', {
+    detectedOs: 'windows',
+    cpuArch: null,
+    locale: 'en',
+    ui: copy.en.ui,
+  });
+  assert.deepEqual(windowsUnknown.files.map((file) => file.name), [
+    'Tokengotchi-0.5.3-win.zip',
+    'Tokengotchi-0.5.3-arm64-win.zip',
+  ]);
+  assert.equal(windowsUnknown.files.filter((file) => file.badge).length, 0);
+  assert.equal(heroAction({
+    detectedOs: 'windows',
+    cpuArch: null,
+    manifest,
+    ui: copy.en.ui,
+    locale: 'en',
+  }).kind, 'choose');
 
   assert.equal(archFromSignals({ userAgent: safari, renderer: 'Apple GPU', architecture: 'arm' }), 'arm64');
   assert.equal(archFromSignals({ userAgent: safari, renderer: 'Apple GPU', architecture: 'x86' }), 'x64');

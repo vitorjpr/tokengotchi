@@ -36,8 +36,8 @@ The example below is the shape only. `<tag>` and `<version>` are placeholders. C
 ```json
 {
   "macos": [
-    { "label": "macOS · Apple Silicon", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/Tokengotchi-<version>-arm64.dmg", "arch": "arm64" },
-    { "label": "macOS · Intel", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/Tokengotchi-<version>-x64.dmg", "arch": "x64" }
+    { "label": "macOS · Apple Silicon", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/Tokengotchi-<version>-arm64.dmg", "arch": "arm64", "secondary": { "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/Tokengotchi-<version>-arm64-mac.zip" } },
+    { "label": "macOS · Intel", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/Tokengotchi-<version>-x64.dmg", "arch": "x64", "secondary": { "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/Tokengotchi-<version>-x64-mac.zip" } }
   ],
   "windows": [
     { "label": "Windows · x64 (zip)", "url": "https://github.com/vitorjpr/tokengotchi/releases/download/<tag>/Tokengotchi-<version>-win.zip", "arch": "x64" },
@@ -64,7 +64,7 @@ Every labeled file for an OS stays on screen. Detecting a CPU highlights that ar
 
 Labels stay language-neutral. The page supplies the verb: `Download {label}` / `Baixar {label}`.
 
-`downloads.json` is the source of truth for the live files and version. It points at the latest published GitHub release. Do not invent URLs for an unpublished release, and do not copy a version number out of this README. Files are per-arch: list each HTTPS URL with `arch` and drop any universal entry. The page lists macOS Apple Silicon and Intel `.dmg` files (ad-hoc signed, not notarized), Windows `.zip` (x64 and arm64), and Linux `.deb` (amd64 and arm64). Add a Windows Setup `.exe` or a Linux AppImage only when a published release actually carries them. Homebrew stays off the page until a tap exists.
+`downloads.json` is the source of truth for the live files and version. It points at the latest published GitHub release. Do not invent URLs for an unpublished release, and do not copy a version number out of this README. Files are per-arch: list each HTTPS URL with `arch` and drop any universal entry. The page lists macOS Apple Silicon and Intel `.dmg` files (ad-hoc signed, not notarized). A matching macOS `.zip` is an optional `secondary` link on that same entry, not a second card and not the hero target. Windows is a `.zip` for x64 and arm64: extract it and run the app. There is no Windows installer in the manifest unless a published release actually ships one. Linux is a `.deb` for amd64 and arm64. Add a Windows Setup `.exe`, a Linux AppImage, or an `.rpm` only when a published release actually carries them. Homebrew stays off the page until a tap exists. An unknown CPU arch leaves every file for that OS visible and unbadged. `secondary.size`, like `size`, is the byte count from the release API when you have it.
 
 ## Artwork
 

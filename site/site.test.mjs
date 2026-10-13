@@ -18,7 +18,7 @@ import {
   linuxDetail,
   listDownloads,
   preferredArchWhenUnknown,
-  releaseNotesUrl,
+  releaseTag,
   selectDownloads,
   validateManifest,
 } from './downloads-logic.mjs';
@@ -78,10 +78,25 @@ test('language switch drops a leftover hash at the top and keeps the section in 
   }), '');
   assert.equal(toward({ hash: '#evolution', targetTop: 40, targetBottom: 600, viewportHeight: 800, scrollY: 900 }), '#evolution');
 
-  const unknown = createLanguageSwitchHash();
-  assert.equal(unknown({ hash: '#custom' }), '#custom');
-  assert.equal(unknown({ hash: '#' }), '');
-  assert.equal(unknown({ hash: 'download', ...view }), '');
+  const follow = createLanguageSwitchHash();
+  assert.equal(follow({ hash: '#download', ...below }), '');
+  assert.equal(follow({ hash: '#download', ...traveling }), '#download');
+  assert.equal(follow({ hash: '#download', ...view }), '#download');
+
+  const resurrect = createLanguageSwitchHash();
+  assert.equal(resurrect({ hash: '#download', ...view }), '#download');
+  assert.equal(resurrect({ hash: '#download', ...below }), '');
+  const atHow = { hash: '#download', targetTop: 1400, targetBottom: 2600, viewportHeight: 800, scrollY: 1600 };
+  assert.equal(resurrect(atHow), '');
+  assert.equal(resurrect(atHow), '');
+
+  const missing = createLanguageSwitchHash();
+  assert.equal(missing({ hash: '#nope', found: false }), '');
+  assert.equal(missing({ hash: '#%E0%A4%A', found: false }), '');
+  assert.equal(missing({ hash: '#custom' }), '');
+  assert.equal(missing({ hash: '#' }), '');
+  assert.equal(missing({ hash: 'download', ...view }), '');
+  assert.equal(missing({ hash: '#how', ...view, scrollY: 1800 }), '#how');
 });
 
 test('desktop OS detection leaves phones and iPads unclassified', () => {
@@ -569,7 +584,7 @@ test('every architecture stays listed, and size and date render only when presen
   }
 
   const tag = manifest.macos[0].url.split('/').at(-2);
-  assert.equal(releaseNotesUrl(manifest), `https://github.com/vitorjpr/tokengotchi/releases/tag/${tag}`);
+  assert.equal(releaseTag(manifest), tag);
   assert.equal(formatSize(106564099, 'en'), '106.6 MB');
   assert.equal(formatSize(106564099, 'pt'), '106,6 MB');
   assert.equal(formatSize(111547831, 'en'), '111.5 MB');

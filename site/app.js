@@ -19,22 +19,20 @@ const resolveSwitchHash = createLanguageSwitchHash();
 
 function switchHash() {
   const hash = location.hash;
-  let targetTop = null;
-  let targetBottom = null;
+  let id = '';
   if (hash.length > 1) {
-    let id = hash.slice(1);
-    try { id = decodeURIComponent(id); } catch { id = ''; }
-    const target = id ? document.getElementById(id) : null;
-    if (target) {
-      const rect = target.getBoundingClientRect();
-      targetTop = rect.top;
-      targetBottom = rect.bottom;
-    }
+    try { id = decodeURIComponent(hash.slice(1)); } catch { id = ''; }
   }
+  const target = id ? document.getElementById(id) : null;
+  if (!target) {
+    return resolveSwitchHash({ hash, found: false });
+  }
+  const rect = target.getBoundingClientRect();
   return resolveSwitchHash({
     hash,
-    targetTop,
-    targetBottom,
+    found: true,
+    targetTop: rect.top,
+    targetBottom: rect.bottom,
     viewportHeight: window.innerHeight,
     scrollY: window.scrollY,
   });

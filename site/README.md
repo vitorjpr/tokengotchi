@@ -62,7 +62,7 @@ The example below is the shape only. `<tag>` and `<version>` are placeholders. C
 
 Every labeled file for an OS stays on screen. Detecting a CPU highlights that architecture and points the hero button at it. It does not hide the other files. A phone, iPad, or anything else `detectDesktopOs` leaves unclassified gets "Get it on your computer" (copy or share the link) instead of a `.dmg` or `.zip` button. The files stay one click away under "Other systems and files".
 
-`size` (bytes) on an entry and a top-level `released` (`YYYY-MM-DD`) are optional. The page prints a size as decimal megabytes (bytes / 1e6, labelled MB) and the date only when they are present, so a release that writes the older shape still builds. Do not invent either value. The release-notes link is derived from `githubReleaseBase` (`…/releases/tag/<tag>`), not fetched from the GitHub API in the browser.
+`size` (bytes) on an entry and a top-level `released` (`YYYY-MM-DD`) are optional. The page prints a size as decimal megabytes (bytes / 1e6, labelled MB) and the date only when they are present, so a release that writes the older shape still builds. Do not invent either value. The version label is the shared release tag from `githubReleaseBase`, not fetched from the GitHub API. The page does not link to release notes.
 
 Labels stay language-neutral. The page supplies the verb: `Download {label}` / `Baixar {label}`.
 

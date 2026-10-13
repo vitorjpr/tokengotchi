@@ -14,31 +14,57 @@ function sectionInView({ targetTop = null, targetBottom = null, viewportHeight =
 
 /**
  * Hash to put on an EN/PT link.
- * A fragment is kept while its section is on screen, and while the page is
- * still moving toward a fragment the user just followed. At the top of the
- * page a leftover fragment (typically #download) is dropped, so the other
- * language opens at the top.
+ * Kept only while that section exists and is on screen, or while the page is
+ * still moving toward a hash the reader just followed and has not yet reached.
+ * A missing section, an undecodable hash, and a hash whose section has left
+ * the screen stay off the links. Scrolling back down does not restore one.
  */
 export function createLanguageSwitchHash() {
-  let seenFor = '';
+  let followed = '';
+  let sawInView = false;
+  let dismissed = false;
+  let moved = false;
+
   return function languageSwitchHash(state = {}) {
     const hash = explicitHash(state.hash);
-    if (!hash) {
-      seenFor = '';
+    if (!hash || state.found === false) {
+      followed = '';
+      sawInView = false;
+      dismissed = false;
+      moved = false;
       return '';
     }
     const inView = sectionInView(state);
-    if (inView === null) return hash;
-    if (inView) {
-      seenFor = hash;
-      return hash;
-    }
-    const scrollY = Number.isFinite(state.scrollY) ? state.scrollY : 0;
-    if (scrollY <= 48) {
-      seenFor = '';
+    if (inView === null) {
+      followed = '';
+      sawInView = false;
+      dismissed = false;
+      moved = false;
       return '';
     }
-    if (seenFor === hash) return '';
-    return hash;
+    const armedNow = hash !== followed;
+    if (armedNow) {
+      followed = hash;
+      sawInView = false;
+      dismissed = false;
+      moved = false;
+    }
+    if (inView) {
+      sawInView = true;
+      moved = true;
+      dismissed = false;
+      return hash;
+    }
+    if (sawInView || dismissed) {
+      dismissed = true;
+      return '';
+    }
+    const scrollY = Number.isFinite(state.scrollY) ? state.scrollY : 0;
+    if (scrollY > 48) {
+      moved = true;
+      return hash;
+    }
+    if (moved) dismissed = true;
+    return '';
   };
 }

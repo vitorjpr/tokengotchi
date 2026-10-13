@@ -28,6 +28,26 @@ import { chooseLocale } from './negotiate.mjs';
 
 const empty = { macos: [], windows: [], linux: [] };
 
+/** Title, meta tags, JSON-LD, and rendered copy. Skips styles, scripts, and font-licence files. */
+function visiblePageText(html) {
+  const chunks = [];
+  for (const match of html.matchAll(/<title[^>]*>([\s\S]*?)<\/title>/gi)) chunks.push(match[1]);
+  for (const match of html.matchAll(/<meta\b[^>]*>/gi)) chunks.push(match[0]);
+  for (const match of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    chunks.push(match[1]);
+  }
+  for (const match of html.matchAll(/<script\b[^>]*id=["']ui-copy["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    chunks.push(match[1]);
+  }
+  const markup = html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '');
+  for (const match of markup.matchAll(/\b(?:alt|aria-label|title)="([^"]*)"/gi)) chunks.push(match[1]);
+  chunks.push(markup.replace(/<[^>]+>/g, ' '));
+  return chunks.join('\n');
+}
+
 test('locale negotiation prefers the cookie, then pt*, then English', () => {
   assert.equal(chooseLocale({ cookieHeader: 'tokengotchi_locale=pt', acceptLanguage: 'en-US' }), 'pt');
   assert.equal(chooseLocale({ cookieHeader: 'theme=dark; tokengotchi_locale=en', acceptLanguage: 'pt-BR' }), 'en');
@@ -429,7 +449,7 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   assert.match(appSource, /createLanguageSwitchHash/);
   assert.doesNotMatch(appSource, /url\.hash = location\.hash/);
   for (const html of [en, pt]) {
-    assert.doesNotMatch(html, /\bmit\b|licen/i);
+    assert.doesNotMatch(visiblePageText(html), /\bmit\b|licen/i);
     assert.match(html, /© <span id="year">/);
     assert.doesNotMatch(html, /View on GitHub|Ver no GitHub/);
     assert.doesNotMatch(html, /Open source|Código aberto|open source|código aberto/);

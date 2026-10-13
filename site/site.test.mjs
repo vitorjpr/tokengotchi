@@ -216,7 +216,7 @@ test('required lines stay in both languages and avoid a paid tier', () => {
   assert.equal(copy.en.heroTitleHtml.includes('Your tokens.'), true);
   assert.match(copy.en.heroTitleHtml, /A little <em>life\.<\/em>/);
   assert.equal(copy.en.heroSub, 'A pixel pet that lives on your desktop and feeds on your AI usage. You build things. It grows up.');
-  assert.equal(copy.en.freeLine, 'Free, MIT-licensed');
+  assert.equal(copy.en.freeLine, 'Free');
   assert.equal(copy.en.ui.heroCta, 'Download');
   assert.equal(copy.en.ui.ctaFor, 'Download for {os}');
   assert.equal(copy.en.ui.ctaMobile, 'Get it on your computer');
@@ -236,7 +236,7 @@ test('required lines stay in both languages and avoid a paid tier', () => {
   assert.match(copy.pt.heroTitleHtml, /Seus tokens\./);
   assert.match(copy.pt.heroTitleHtml, /<em>pequenina\.<\/em>/);
   assert.equal(copy.pt.heroSub, 'Um bichinho pixelado que mora na sua tela e se alimenta do que você gasta com IA. Você cria. Ele cresce.');
-  assert.equal(copy.pt.freeLine, 'Grátis, licença MIT');
+  assert.equal(copy.pt.freeLine, 'Grátis');
   assert.equal(copy.pt.ui.heroCta, 'Baixar');
   assert.equal(copy.pt.ui.ctaFor, 'Baixar para {os}');
   assert.equal(copy.pt.ui.ctaMobile, 'Baixe no computador');
@@ -429,6 +429,8 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   assert.match(appSource, /createLanguageSwitchHash/);
   assert.doesNotMatch(appSource, /url\.hash = location\.hash/);
   for (const html of [en, pt]) {
+    assert.doesNotMatch(html, /\bmit\b|licen/i);
+    assert.match(html, /© <span id="year">/);
     assert.doesNotMatch(html, /View on GitHub|Ver no GitHub/);
     assert.doesNotMatch(html, /Open source|Código aberto|open source|código aberto/);
     assert.doesNotMatch(html, /Read every line on GitHub|Leia cada linha no GitHub/);
@@ -670,7 +672,7 @@ test('phones get a computer path and desktops link the detected file', () => {
   assert.equal(mac.sizeText, '111.5 MB');
   assert.equal(
     heroMetaLine({ detectedOs: 'macos', cpuArch: 'arm64', manifest, ui: copy.en.ui, locale: 'en' }),
-    'Apple Silicon · 106.6 MB · Free, MIT-licensed',
+    'Apple Silicon · 106.6 MB · Free',
   );
   const unknown = heroAction({ detectedOs: 'macos', cpuArch: null, manifest, ui: copy.en.ui, locale: 'en' });
   assert.equal(unknown.kind, 'choose');
@@ -678,7 +680,7 @@ test('phones get a computer path and desktops link the detected file', () => {
   assert.equal(unknown.text, 'Download for macOS');
   assert.equal(
     heroMetaLine({ detectedOs: 'macos', cpuArch: null, manifest, ui: copy.en.ui, locale: 'en' }),
-    'Free, MIT-licensed',
+    'Free',
   );
   const both = downloadView(manifest, 'macos', { detectedOs: 'macos', cpuArch: 'x64', locale: 'en', ui: copy.en.ui });
   assert.deepEqual(both.files.map((file) => file.arch), ['x64', 'arm64']);
@@ -703,7 +705,7 @@ test('Safari with no arch signal recommends Apple Silicon in the chooser', async
   assert.doesNotMatch(action.href, /arm64|\.dmg/);
   assert.equal(
     heroMetaLine({ detectedOs: 'macos', cpuArch: arch, manifest, ui: copy.en.ui, locale: 'en' }),
-    'v0.5.3 · Free, MIT-licensed',
+    'v0.5.3 · Free',
   );
 
   const view = downloadView(manifest, 'macos', {
@@ -870,7 +872,7 @@ test('unknown Mac recommends Apple Silicon by rule, and Windows and Linux stay e
     assert.equal(hero.archLabel, null);
     assert.equal(
       heroMetaLine({ detectedOs: 'macos', cpuArch: null, manifest, ui: copy[locale].ui, locale }),
-      locale === 'pt' ? 'v0.5.3 · Grátis, licença MIT' : 'v0.5.3 · Free, MIT-licensed',
+      locale === 'pt' ? 'v0.5.3 · Grátis' : 'v0.5.3 · Free',
     );
   }
 

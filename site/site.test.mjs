@@ -23,6 +23,7 @@ import {
   validateManifest,
 } from './downloads-logic.mjs';
 import { onRequest } from './functions/index.js';
+import { createLanguageSwitchHash } from './language-switch.mjs';
 import { chooseLocale } from './negotiate.mjs';
 
 const empty = { macos: [], windows: [], linux: [] };
@@ -49,6 +50,38 @@ test('root redirect follows Accept-Language and keeps the query string', async (
   assert.equal(response.headers.get('Location'), 'https://tokengotchi.app/pt/?from=home');
   assert.match(response.headers.get('Vary'), /Accept-Language/);
   assert.match(response.headers.get('Cache-Control'), /no-store/);
+});
+
+test('language switch drops a leftover hash at the top and keeps the section in view', () => {
+  const view = { targetTop: 24, targetBottom: 900, viewportHeight: 800, scrollY: 2400 };
+  const below = { targetTop: 2800, targetBottom: 4200, viewportHeight: 800, scrollY: 0 };
+  const traveling = { targetTop: 900, targetBottom: 2200, viewportHeight: 800, scrollY: 1200 };
+
+  const fresh = createLanguageSwitchHash();
+  assert.equal(fresh({ hash: '', ...below }), '');
+  assert.equal(fresh({ hash: '#download', ...below }), '');
+  assert.equal(fresh({ hash: '#how', ...view, scrollY: 1800 }), '#how');
+
+  const stale = createLanguageSwitchHash();
+  assert.equal(stale({ hash: '#download', ...view }), '#download');
+  assert.equal(stale({ hash: '#download', ...below }), '');
+
+  const toward = createLanguageSwitchHash();
+  assert.equal(toward({ hash: '#download', ...traveling }), '#download');
+  assert.equal(toward({ hash: '#download', ...view }), '#download');
+  assert.equal(toward({
+    hash: '#download',
+    targetTop: -1800,
+    targetBottom: -200,
+    viewportHeight: 800,
+    scrollY: 4200,
+  }), '');
+  assert.equal(toward({ hash: '#evolution', targetTop: 40, targetBottom: 600, viewportHeight: 800, scrollY: 900 }), '#evolution');
+
+  const unknown = createLanguageSwitchHash();
+  assert.equal(unknown({ hash: '#custom' }), '#custom');
+  assert.equal(unknown({ hash: '#' }), '');
+  assert.equal(unknown({ hash: 'download', ...view }), '');
 });
 
 test('desktop OS detection leaves phones and iPads unclassified', () => {
@@ -375,6 +408,24 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   await access(new URL('./dist/assets/OFL-PixelifySans.txt', import.meta.url));
   await access(new URL('./dist/downloads-logic.mjs', import.meta.url));
   await access(new URL('./dist/inline-code.mjs', import.meta.url));
+  await access(new URL('./dist/language-switch.mjs', import.meta.url));
+
+  const appSource = await readFile(new URL('./app.js', import.meta.url), 'utf8');
+  assert.match(appSource, /createLanguageSwitchHash/);
+  assert.doesNotMatch(appSource, /url\.hash = location\.hash/);
+  for (const html of [en, pt]) {
+    assert.doesNotMatch(html, /View on GitHub|Ver no GitHub/);
+    assert.doesNotMatch(html, /Open source|Código aberto|open source|código aberto/);
+    assert.doesNotMatch(html, /Read every line on GitHub|Leia cada linha no GitHub/);
+    assert.doesNotMatch(html, /<dt>Source<\/dt>|<dt>Código<\/dt>/);
+    assert.doesNotMatch(html, /href="https:\/\/github\.com\/vitorjpr\/tokengotchi"/);
+    assert.doesNotMatch(html, /releases\/tag\//);
+    assert.doesNotMatch(html, /M8 0a8 8 0 0 0-2\.53 15\.59/);
+    assert.match(html, /href="\/en\/" hreflang="en"/);
+    assert.match(html, /href="\/pt\/" hreflang="pt"/);
+    assert.doesNotMatch(html, /href="\/(?:en|pt)\/#/);
+    assert.match(html, /releases\/download\/v0\.5\.3\/SHA256SUMS/);
+  }
 });
 
 test('apt commands use the deb basename and fall back without a placeholder', () => {

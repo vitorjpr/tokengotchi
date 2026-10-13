@@ -244,9 +244,12 @@ test('required lines stay in both languages and avoid a paid tier', () => {
   assert.match(copy.en.feed3Body, /Output tokens count more than cached ones/);
   assert.match(copy.en.livesBody, /Disappear for more than about 3½ days and it dies/);
   assert.equal(copy.en.privTitle, 'Your work stays yours.');
-  assert.equal(copy.en.privBody, 'Usage is read on your device. Logs and pet data stay there. The app only checks GitHub for new releases, and you can turn that off.');
-  assert.match(copy.en.trustHtml, /Stays on your machine\./);
-  assert.match(copy.en.trustHtml, /optional GitHub release check/);
+  assert.equal(copy.en.privBody, 'Tokengotchi makes one kind of network request: a daily check for a new version at downloads.tokengotchi.app (served by Cloudflare). It sends only your app version, and Cloudflare sees your IP. Nothing about your pet or your usage is sent. Turn it off with <code>"updates": { "enabled": false }</code> in <code>sources.json</code>. The app also listens on 127.0.0.1 only, password-protected and never reachable from the network, so local hooks can feed your pet. Set <code>ingest.enabled</code> to false to turn that off.');
+  assert.equal(copy.en.trustHtml, '<strong>Stays on your machine.</strong> Nothing about your pet or your usage is sent. The only network call is a daily version check at downloads.tokengotchi.app, and you can turn it off.');
+  assert.equal(copy.en.privNetBody, 'A daily check for a new version at downloads.tokengotchi.app. It sends only your app version, and Cloudflare sees your IP. Turn it off with <code>"updates": { "enabled": false }</code> in <code>sources.json</code>.');
+  assert.match(copy.en.privStaysBody, /127\.0\.0\.1 only, password-protected/);
+  assert.match(copy.en.privStaysBody, /<code>ingest\.enabled<\/code>/);
+  assert.equal(copy.en.privReadsBodyHtml, 'Tokengotchi reads nothing until you turn a source on in the menu: Claude Code, Codex CLI, Grok CLI or Cursor. It reads token counts from local logs, never their text. Cursor doesn\'t log tokens, so Tokengotchi estimates them from how often Cursor\'s files change, without opening them.');
   assert.equal(copy.en.navHow, 'How it works');
   assert.equal(copy.en.navEvolution, 'Evolution');
   assert.equal(copy.en.navDownload, 'Download');
@@ -263,8 +266,13 @@ test('required lines stay in both languages and avoid a paid tier', () => {
   assert.equal(copy.pt.feedTitleHtml, 'Você faz a sua parte.<br>Ele faz a dele.');
   assert.match(copy.pt.livesBody, /Se sumir por mais de uns 3 dias e meio, ele morre/);
   assert.equal(copy.pt.privTitle, 'Seu trabalho fica com você.');
-  assert.equal(copy.pt.privBody, 'A leitura é na sua máquina. Logs e dados do bichinho não saem daí. A única rede é checar releases no GitHub, e dá para desligar.');
-  assert.match(copy.pt.trustHtml, /Fica na sua máquina\./);
+  assert.equal(copy.pt.privBody, 'O Tokengotchi faz um único tipo de chamada de rede: uma checagem diária de versão nova em downloads.tokengotchi.app (servido pela Cloudflare). Ele envia só a versão do app, e a Cloudflare vê o seu IP. Nada do bichinho nem do seu uso é enviado. Desligue com <code>"updates": { "enabled": false }</code> no <code>sources.json</code>. O app também escuta só em 127.0.0.1, protegido por senha e nunca alcançável pela rede, para que hooks locais possam alimentar o bichinho. Para desligar, deixe <code>ingest.enabled</code> como false.');
+  assert.equal(copy.pt.trustHtml, '<strong>Fica na sua máquina.</strong> Nada do bichinho nem do seu uso é enviado. A única chamada de rede é uma checagem diária de versão em downloads.tokengotchi.app, e dá para desligar.');
+  assert.equal(copy.pt.privNetBody, 'Uma checagem diária de versão nova em downloads.tokengotchi.app. Ele envia só a versão do app, e a Cloudflare vê o seu IP. Desligue com <code>"updates": { "enabled": false }</code> no <code>sources.json</code>.');
+  assert.match(copy.pt.privStaysBody, /127\.0\.0\.1/);
+  assert.match(copy.pt.privStaysBody, /<code>ingest\.enabled<\/code>/);
+  assert.match(copy.pt.privReadsBodyHtml, /Claude Code, Codex CLI, Grok CLI ou Cursor/);
+  assert.match(copy.pt.privReadsBodyHtml, /sem abri-los/);
   assert.equal(copy.pt.navHow, 'Como funciona');
   assert.equal(copy.pt.navEvolution, 'Evolução');
   assert.equal(copy.pt.navDownload, 'Baixar');
@@ -275,6 +283,7 @@ test('required lines stay in both languages and avoid a paid tier', () => {
 
   const blob = JSON.stringify(copy).toLowerCase();
   assert.doesNotMatch(blob, /premium|pricing/);
+  assert.doesNotMatch(blob, /github/);
   assert.deepEqual(Object.keys(copy.en).sort(), Object.keys(copy.pt).sort());
   assert.deepEqual(Object.keys(copy.en.ui).sort(), Object.keys(copy.pt.ui).sort());
   assert.deepEqual(Object.keys(copy.en.ui.detail).sort(), Object.keys(copy.pt.ui.detail).sort());
@@ -454,6 +463,10 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
     assert.doesNotMatch(html, /View on GitHub|Ver no GitHub/);
     assert.doesNotMatch(html, /Open source|Código aberto|open source|código aberto/);
     assert.doesNotMatch(html, /Read every line on GitHub|Leia cada linha no GitHub/);
+    assert.doesNotMatch(html, /GitHub/);
+    assert.match(html, /<code>"updates": \{ "enabled": false \}<\/code>/);
+    assert.match(html, /<code>ingest\.enabled<\/code>/);
+    assert.match(html, /downloads\.tokengotchi\.app/);
     assert.doesNotMatch(html, /<dt>Source<\/dt>|<dt>Código<\/dt>/);
     assert.doesNotMatch(html, /href="https:\/\/github\.com\/vitorjpr\/tokengotchi"/);
     assert.doesNotMatch(html, /releases\/tag\//);

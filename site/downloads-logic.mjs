@@ -222,17 +222,11 @@ export function fileExtension(url) {
   return match ? match[1].toLowerCase() : '';
 }
 
-/** `.../releases/tag/<tag>` for the shared release, or null. */
-export function releaseNotesUrl(manifest) {
+/** Shared release tag from the SHA256SUMS URL, or null. */
+export function releaseTag(manifest) {
   const sums = checksumUrl(manifest);
   if (!sums) return null;
-  return sums.replace('/releases/download/', '/releases/tag/').replace(/\/SHA256SUMS$/, '');
-}
-
-export function releaseTag(manifest) {
-  const notes = releaseNotesUrl(manifest);
-  if (!notes) return null;
-  const tag = notes.split('/').pop() || '';
+  const tag = sums.split('/').at(-2) || '';
   return tag || null;
 }
 
@@ -320,7 +314,6 @@ export function downloadView(manifest, os, { detectedOs = null, cpuArch = null, 
     hint,
     tag: releaseTag(manifest),
     released: formatReleaseDate(manifest?.released, locale),
-    notesUrl: releaseNotesUrl(manifest),
     sumsUrl: checksumUrl(manifest),
   };
 }

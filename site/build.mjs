@@ -106,9 +106,6 @@ export function renderMetaHtml(locale, manifest) {
   const bits = [];
   if (view.tag) bits.push(`<span><span class="k">${escapeHtml(page.version)}</span> ${escapeHtml(view.tag)}</span>`);
   if (view.released) bits.push(`<span><span class="k">${escapeHtml(page.released)}</span> ${escapeHtml(view.released)}</span>`);
-  if (view.notesUrl) {
-    bits.push(`<a href="${escapeHtml(view.notesUrl)}">${escapeHtml(page.notes)} <span aria-hidden="true">↗</span></a>`);
-  }
   if (view.sumsUrl) {
     bits.push(`<a href="${escapeHtml(view.sumsUrl)}">${escapeHtml(page.checksum)} <span aria-hidden="true">↗</span></a>`);
   }
@@ -203,7 +200,7 @@ export async function build() {
 
   await writeFile(new URL('./index.html', output), rootPage());
   await writeFile(new URL('./_redirects', output), '/en /en/ 301\n/pt /pt/ 301\n');
-  for (const file of ['styles.css', 'app.js', 'downloads.json', 'negotiate.mjs', 'downloads-logic.mjs', 'inline-code.mjs', 'assets']) {
+  for (const file of ['styles.css', 'app.js', 'downloads.json', 'negotiate.mjs', 'downloads-logic.mjs', 'inline-code.mjs', 'language-switch.mjs', 'assets']) {
     await cp(new URL(file, root), new URL(file, output), { recursive: true });
   }
   console.log('Static site built in site/dist');

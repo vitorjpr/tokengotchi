@@ -19,7 +19,7 @@ The landing is one page in two static trees:
 
 `styles.css`, `app.js`, `assets/`, and `downloads.json` are shared from the site root. There is no pricing, blog, or account page.
 
-`/` redirects to `/pt/` when the preferred language is `pt*` (for example `pt-BR`), and to `/en/` otherwise. A `tokengotchi_locale` cookie (`en` or `pt`, one year, `Path=/`, `SameSite=Lax`) wins over `Accept-Language`. The header language switcher swaps `/en/` and `/pt/` and keeps the current hash, such as `#download`. Each locale page sets the cookie, so opening a language directly becomes the next preference.
+`/` redirects to `/pt/` when the preferred language is `pt*` (for example `pt-BR`), and to `/en/` otherwise. A `tokengotchi_locale` cookie (`en` or `pt`, one year, `Path=/`, `SameSite=Lax`) wins over `Accept-Language`. The header language switcher swaps `/en/` and `/pt/`. It keeps a hash only while that section is on screen (or while the page is still moving toward a hash the reader just followed). From the top of the page, including when a leftover `#download` is still in the URL, the other language opens at the top. Each locale page sets the cookie, so opening a language directly becomes the next preference.
 
 That root redirect is the only server step. `site/functions/index.js` is a Cloudflare Pages Function. Pages reads it from the `site` project root; it is not copied into `dist`. It exists because a static file cannot see `Accept-Language`. The response is `302`, `Vary: Accept-Language, Cookie`, and `Cache-Control: private, no-store`.
 
@@ -62,7 +62,7 @@ The example below is the shape only. `<tag>` and `<version>` are placeholders. C
 
 Every labeled file for an OS stays on screen. Detecting a CPU highlights that architecture and points the hero button at it. It does not hide the other files. A phone, iPad, or anything else `detectDesktopOs` leaves unclassified gets "Get it on your computer" (copy or share the link) instead of a `.dmg` or `.zip` button. The files stay one click away under "Other systems and files".
 
-`size` (bytes) on an entry and a top-level `released` (`YYYY-MM-DD`) are optional. The page prints a size as decimal megabytes (bytes / 1e6, labelled MB) and the date only when they are present, so a release that writes the older shape still builds. Do not invent either value. The release-notes link is derived from `githubReleaseBase` (`…/releases/tag/<tag>`), not fetched from the GitHub API in the browser.
+`size` (bytes) on an entry and a top-level `released` (`YYYY-MM-DD`) are optional. The page prints a size as decimal megabytes (bytes / 1e6, labelled MB) and the date only when they are present, so a release that writes the older shape still builds. Do not invent either value. The version label is the shared release tag from `githubReleaseBase`, not fetched from the GitHub API. The page does not link to release notes.
 
 Labels stay language-neutral. The page supplies the verb: `Download {label}` / `Baixar {label}`.
 

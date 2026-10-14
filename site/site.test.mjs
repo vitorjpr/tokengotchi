@@ -18,14 +18,35 @@ import {
   linuxDetail,
   listDownloads,
   preferredArchWhenUnknown,
-  releaseNotesUrl,
+  releaseTag,
   selectDownloads,
   validateManifest,
 } from './downloads-logic.mjs';
 import { onRequest } from './functions/index.js';
+import { createLanguageSwitchHash } from './language-switch.mjs';
 import { chooseLocale } from './negotiate.mjs';
 
 const empty = { macos: [], windows: [], linux: [] };
+
+/** Title, meta tags, JSON-LD, and rendered copy. Skips styles, scripts, and font-licence files. */
+function visiblePageText(html) {
+  const chunks = [];
+  for (const match of html.matchAll(/<title[^>]*>([\s\S]*?)<\/title>/gi)) chunks.push(match[1]);
+  for (const match of html.matchAll(/<meta\b[^>]*>/gi)) chunks.push(match[0]);
+  for (const match of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    chunks.push(match[1]);
+  }
+  for (const match of html.matchAll(/<script\b[^>]*id=["']ui-copy["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    chunks.push(match[1]);
+  }
+  const markup = html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '');
+  for (const match of markup.matchAll(/\b(?:alt|aria-label|title)="([^"]*)"/gi)) chunks.push(match[1]);
+  chunks.push(markup.replace(/<[^>]+>/g, ' '));
+  return chunks.join('\n');
+}
 
 test('locale negotiation prefers the cookie, then pt*, then English', () => {
   assert.equal(chooseLocale({ cookieHeader: 'tokengotchi_locale=pt', acceptLanguage: 'en-US' }), 'pt');
@@ -49,6 +70,53 @@ test('root redirect follows Accept-Language and keeps the query string', async (
   assert.equal(response.headers.get('Location'), 'https://tokengotchi.app/pt/?from=home');
   assert.match(response.headers.get('Vary'), /Accept-Language/);
   assert.match(response.headers.get('Cache-Control'), /no-store/);
+});
+
+test('language switch drops a leftover hash at the top and keeps the section in view', () => {
+  const view = { targetTop: 24, targetBottom: 900, viewportHeight: 800, scrollY: 2400 };
+  const below = { targetTop: 2800, targetBottom: 4200, viewportHeight: 800, scrollY: 0 };
+  const traveling = { targetTop: 900, targetBottom: 2200, viewportHeight: 800, scrollY: 1200 };
+
+  const fresh = createLanguageSwitchHash();
+  assert.equal(fresh({ hash: '', ...below }), '');
+  assert.equal(fresh({ hash: '#download', ...below }), '');
+  assert.equal(fresh({ hash: '#how', ...view, scrollY: 1800 }), '#how');
+
+  const stale = createLanguageSwitchHash();
+  assert.equal(stale({ hash: '#download', ...view }), '#download');
+  assert.equal(stale({ hash: '#download', ...below }), '');
+
+  const toward = createLanguageSwitchHash();
+  assert.equal(toward({ hash: '#download', ...traveling }), '#download');
+  assert.equal(toward({ hash: '#download', ...view }), '#download');
+  assert.equal(toward({
+    hash: '#download',
+    targetTop: -1800,
+    targetBottom: -200,
+    viewportHeight: 800,
+    scrollY: 4200,
+  }), '');
+  assert.equal(toward({ hash: '#evolution', targetTop: 40, targetBottom: 600, viewportHeight: 800, scrollY: 900 }), '#evolution');
+
+  const follow = createLanguageSwitchHash();
+  assert.equal(follow({ hash: '#download', ...below }), '');
+  assert.equal(follow({ hash: '#download', ...traveling }), '#download');
+  assert.equal(follow({ hash: '#download', ...view }), '#download');
+
+  const resurrect = createLanguageSwitchHash();
+  assert.equal(resurrect({ hash: '#download', ...view }), '#download');
+  assert.equal(resurrect({ hash: '#download', ...below }), '');
+  const atHow = { hash: '#download', targetTop: 1400, targetBottom: 2600, viewportHeight: 800, scrollY: 1600 };
+  assert.equal(resurrect(atHow), '');
+  assert.equal(resurrect(atHow), '');
+
+  const missing = createLanguageSwitchHash();
+  assert.equal(missing({ hash: '#nope', found: false }), '');
+  assert.equal(missing({ hash: '#%E0%A4%A', found: false }), '');
+  assert.equal(missing({ hash: '#custom' }), '');
+  assert.equal(missing({ hash: '#' }), '');
+  assert.equal(missing({ hash: 'download', ...view }), '');
+  assert.equal(missing({ hash: '#how', ...view, scrollY: 1800 }), '#how');
 });
 
 test('desktop OS detection leaves phones and iPads unclassified', () => {
@@ -168,7 +236,7 @@ test('required lines stay in both languages and avoid a paid tier', () => {
   assert.equal(copy.en.heroTitleHtml.includes('Your tokens.'), true);
   assert.match(copy.en.heroTitleHtml, /A little <em>life\.<\/em>/);
   assert.equal(copy.en.heroSub, 'A pixel pet that lives on your desktop and feeds on your AI usage. You build things. It grows up.');
-  assert.equal(copy.en.freeLine, 'Free, MIT-licensed');
+  assert.equal(copy.en.freeLine, 'Free');
   assert.equal(copy.en.ui.heroCta, 'Download');
   assert.equal(copy.en.ui.ctaFor, 'Download for {os}');
   assert.equal(copy.en.ui.ctaMobile, 'Get it on your computer');
@@ -188,7 +256,7 @@ test('required lines stay in both languages and avoid a paid tier', () => {
   assert.match(copy.pt.heroTitleHtml, /Seus tokens\./);
   assert.match(copy.pt.heroTitleHtml, /<em>pequenina\.<\/em>/);
   assert.equal(copy.pt.heroSub, 'Um bichinho pixelado que mora na sua tela e se alimenta do que você gasta com IA. Você cria. Ele cresce.');
-  assert.equal(copy.pt.freeLine, 'Grátis, licença MIT');
+  assert.equal(copy.pt.freeLine, 'Grátis');
   assert.equal(copy.pt.ui.heroCta, 'Baixar');
   assert.equal(copy.pt.ui.ctaFor, 'Baixar para {os}');
   assert.equal(copy.pt.ui.ctaMobile, 'Baixe no computador');
@@ -375,6 +443,26 @@ test('build writes locale trees, shared assets, and per-locale SEO', async () =>
   await access(new URL('./dist/assets/OFL-PixelifySans.txt', import.meta.url));
   await access(new URL('./dist/downloads-logic.mjs', import.meta.url));
   await access(new URL('./dist/inline-code.mjs', import.meta.url));
+  await access(new URL('./dist/language-switch.mjs', import.meta.url));
+
+  const appSource = await readFile(new URL('./app.js', import.meta.url), 'utf8');
+  assert.match(appSource, /createLanguageSwitchHash/);
+  assert.doesNotMatch(appSource, /url\.hash = location\.hash/);
+  for (const html of [en, pt]) {
+    assert.doesNotMatch(visiblePageText(html), /\bmit\b|licen/i);
+    assert.match(html, /© <span id="year">/);
+    assert.doesNotMatch(html, /View on GitHub|Ver no GitHub/);
+    assert.doesNotMatch(html, /Open source|Código aberto|open source|código aberto/);
+    assert.doesNotMatch(html, /Read every line on GitHub|Leia cada linha no GitHub/);
+    assert.doesNotMatch(html, /<dt>Source<\/dt>|<dt>Código<\/dt>/);
+    assert.doesNotMatch(html, /href="https:\/\/github\.com\/vitorjpr\/tokengotchi"/);
+    assert.doesNotMatch(html, /releases\/tag\//);
+    assert.doesNotMatch(html, /M8 0a8 8 0 0 0-2\.53 15\.59/);
+    assert.match(html, /href="\/en\/" hreflang="en"/);
+    assert.match(html, /href="\/pt\/" hreflang="pt"/);
+    assert.doesNotMatch(html, /href="\/(?:en|pt)\/#/);
+    assert.match(html, /releases\/download\/v0\.5\.3\/SHA256SUMS/);
+  }
 });
 
 test('apt commands use the deb basename and fall back without a placeholder', () => {
@@ -518,7 +606,7 @@ test('every architecture stays listed, and size and date render only when presen
   }
 
   const tag = manifest.macos[0].url.split('/').at(-2);
-  assert.equal(releaseNotesUrl(manifest), `https://github.com/vitorjpr/tokengotchi/releases/tag/${tag}`);
+  assert.equal(releaseTag(manifest), tag);
   assert.equal(formatSize(106564099, 'en'), '106.6 MB');
   assert.equal(formatSize(106564099, 'pt'), '106,6 MB');
   assert.equal(formatSize(111547831, 'en'), '111.5 MB');
@@ -604,7 +692,7 @@ test('phones get a computer path and desktops link the detected file', () => {
   assert.equal(mac.sizeText, '111.5 MB');
   assert.equal(
     heroMetaLine({ detectedOs: 'macos', cpuArch: 'arm64', manifest, ui: copy.en.ui, locale: 'en' }),
-    'Apple Silicon · 106.6 MB · Free, MIT-licensed',
+    'Apple Silicon · 106.6 MB · Free',
   );
   const unknown = heroAction({ detectedOs: 'macos', cpuArch: null, manifest, ui: copy.en.ui, locale: 'en' });
   assert.equal(unknown.kind, 'choose');
@@ -612,7 +700,7 @@ test('phones get a computer path and desktops link the detected file', () => {
   assert.equal(unknown.text, 'Download for macOS');
   assert.equal(
     heroMetaLine({ detectedOs: 'macos', cpuArch: null, manifest, ui: copy.en.ui, locale: 'en' }),
-    'Free, MIT-licensed',
+    'Free',
   );
   const both = downloadView(manifest, 'macos', { detectedOs: 'macos', cpuArch: 'x64', locale: 'en', ui: copy.en.ui });
   assert.deepEqual(both.files.map((file) => file.arch), ['x64', 'arm64']);
@@ -637,7 +725,7 @@ test('Safari with no arch signal recommends Apple Silicon in the chooser', async
   assert.doesNotMatch(action.href, /arm64|\.dmg/);
   assert.equal(
     heroMetaLine({ detectedOs: 'macos', cpuArch: arch, manifest, ui: copy.en.ui, locale: 'en' }),
-    'v0.5.3 · Free, MIT-licensed',
+    'v0.5.3 · Free',
   );
 
   const view = downloadView(manifest, 'macos', {
@@ -804,7 +892,7 @@ test('unknown Mac recommends Apple Silicon by rule, and Windows and Linux stay e
     assert.equal(hero.archLabel, null);
     assert.equal(
       heroMetaLine({ detectedOs: 'macos', cpuArch: null, manifest, ui: copy[locale].ui, locale }),
-      locale === 'pt' ? 'v0.5.3 · Grátis, licença MIT' : 'v0.5.3 · Free, MIT-licensed',
+      locale === 'pt' ? 'v0.5.3 · Grátis' : 'v0.5.3 · Free',
     );
   }
 

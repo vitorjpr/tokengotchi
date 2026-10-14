@@ -107,8 +107,6 @@ h1, h2 { text-wrap: balance; }
 .btn-xl { min-height: 60px; padding: 16px 28px; font-size: 18px; }
 .btn-secondary { background: transparent; color: var(--app-text); border-color: var(--app-secondary); }
 .btn-secondary:hover { background: var(--app-surface); }
-.btn-ghost { background: transparent; color: var(--ink); border-color: #5a4d43; }
-.btn-ghost:hover { border-color: var(--soft); }
 
 .when-phone { display: none; }
 html[data-device="phone"] .when-desktop { display: none; }
@@ -320,6 +318,7 @@ h2 { font: 600 clamp(34px, 3.6vw, 48px)/1.1 var(--sans); letter-spacing: -.02em;
 .priv-card p { font-size: 17px; margin: 14px 0 0; }
 .priv-list { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 0; }
 .priv-list div { background: var(--app-bg); border: 1px solid var(--app-border); border-radius: 8px; padding: 14px 16px; }
+.priv-list > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .priv-list dt { font: 600 13px var(--mono); text-transform: uppercase; letter-spacing: .12em; }
 .priv-list dd { margin: 6px 0 0; font-size: 16px; color: var(--app-text); }
 

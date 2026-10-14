@@ -1,4 +1,5 @@
 import { inlineCodeSegments } from './inline-code.mjs';
+import { createLanguageSwitchHash } from './language-switch.mjs';
 import { LOCALE_COOKIE } from './negotiate.mjs';
 import {
   aptInstallPlans,
@@ -14,18 +15,44 @@ const ui = JSON.parse(document.querySelector('#ui-copy').textContent);
 const locale = document.documentElement.dataset.locale === 'pt' ? 'pt' : 'en';
 document.cookie = `${LOCALE_COOKIE}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax`;
 
+const resolveSwitchHash = createLanguageSwitchHash();
+
+function switchHash() {
+  const hash = location.hash;
+  let id = '';
+  if (hash.length > 1) {
+    try { id = decodeURIComponent(hash.slice(1)); } catch { id = ''; }
+  }
+  const target = id ? document.getElementById(id) : null;
+  if (!target) {
+    return resolveSwitchHash({ hash, found: false });
+  }
+  const rect = target.getBoundingClientRect();
+  return resolveSwitchHash({
+    hash,
+    found: true,
+    targetTop: rect.top,
+    targetBottom: rect.bottom,
+    viewportHeight: window.innerHeight,
+    scrollY: window.scrollY,
+  });
+}
+
 function syncLanguageLinks() {
   for (const link of document.querySelectorAll('[data-switch]')) {
     const target = link.dataset.switch === 'pt' ? 'pt' : 'en';
     const url = new URL(`/${target}/`, location.origin);
     url.search = location.search;
-    url.hash = location.hash;
+    url.hash = switchHash();
     link.href = `${url.pathname}${url.search}${url.hash}`;
   }
 }
 
 syncLanguageLinks();
 addEventListener('hashchange', syncLanguageLinks);
+addEventListener('scroll', syncLanguageLinks, { passive: true });
+document.querySelector('.lang')?.addEventListener('pointerdown', syncLanguageLinks);
+document.querySelector('.lang')?.addEventListener('focusin', syncLanguageLinks);
 
 const detected = detectDesktopOs(navigator.userAgent, {
   platform: navigator.platform,
@@ -182,18 +209,16 @@ function renderMeta() {
   };
   if (view.tag) addFact(ui.version, view.tag);
   if (view.released) addFact(ui.released, view.released);
-  const addLink = (href, text) => {
+  if (view.sumsUrl && ui.checksum) {
     const link = document.createElement('a');
-    link.href = href;
-    link.append(text, ' ');
+    link.href = view.sumsUrl;
+    link.append(ui.checksum, ' ');
     const arrow = document.createElement('span');
     arrow.setAttribute('aria-hidden', 'true');
     arrow.textContent = '↗';
     link.append(arrow);
     row.append(link);
-  };
-  if (view.notesUrl && ui.notes) addLink(view.notesUrl, ui.notes);
-  if (view.sumsUrl && ui.checksum) addLink(view.sumsUrl, ui.checksum);
+  }
   host.append(row);
   if (ui.checksumNote) {
     const note = document.createElement('p');
